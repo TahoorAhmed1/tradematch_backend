@@ -1,0 +1,200 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model user {
+  id       Int     @id @default(autoincrement())
+  username String?
+  password String?
+  email    String? @unique
+
+  type UserType @default(user)
+
+  accountType AccountType @default(guest)
+
+  authentication authentication?
+
+  user_onboarding_response   user_onboarding_response[]
+  createdAt                  DateTime                     @default(now()) @db.DateTime(0)
+  updatedAt                  DateTime                     @updatedAt @db.Timestamp(0)
+  user_workouts              user_workouts[]
+  user_workout_subcategories user_workout_subcategories[]
+
+  @@index([id, email])
+}
+
+model authentication {
+  id Int @id @default(autoincrement())
+
+  user    user? @relation(fields: [user_id], references: [id])
+  user_id Int   @unique
+
+  isEmailVerified Boolean @default(false)
+  emailOtp        String?
+
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.Timestamp(0)
+}
+
+model onboarding_questions {
+  id Int @id @default(autoincrement())
+
+  question         String?
+  onboarding_answers onboarding_answers[]
+
+  createdAt               DateTime                  @default(now()) @db.DateTime(0)
+  updatedAt               DateTime                  @updatedAt @db.Timestamp(0)
+  user_onboarding_answers user_onboarding_answers[]
+
+  @@index([id])
+}
+
+model onboarding_answers {
+  id Int @id @default(autoincrement())
+
+  onboarding_questions     onboarding_questions? @relation(fields: [questions_id], references: [id])
+  questions_id Int?
+
+  answer                 String?
+  user_onboarding_answers user_onboarding_answers[]
+
+  createdAt               DateTime                  @default(now()) @db.DateTime(0)
+  updatedAt               DateTime                  @updatedAt @db.Timestamp(0)
+
+  @@index([id])
+}
+
+model user_onboarding_response {
+  id Int @id @default(autoincrement())
+
+  user    user @relation(fields: [user_id], references: [id])
+  user_id Int
+
+  user_onboarding_answers user_onboarding_answers[]
+
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.Timestamp(0)
+
+  @@index([id, user_id])
+}
+
+model user_onboarding_answers {
+  id Int @id @default(autoincrement())
+
+  question    onboarding_questions @relation(fields: [question_id], references: [id])
+  question_id Int
+
+  answer    onboarding_answers? @relation(fields: [answer_id], references: [id])
+  answer_id Int
+
+  user_onboarding_response    user_onboarding_response? @relation(fields: [user_onboarding_response_id], references: [id])
+  user_onboarding_response_id Int?
+
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.Timestamp(0)
+}
+
+model workout_category {
+  id Int @id @default(autoincrement())
+
+  name                String?
+  image               String?
+  workout_level       WorkoutLevel?
+  video               String?
+
+  workout_subcategory workout_subcategory[]
+  user_workouts user_workouts[]
+
+  createdAt     DateTime        @default(now()) @db.DateTime(0)
+  updatedAt     DateTime        @updatedAt @db.Timestamp(0)
+}
+
+model workout_subcategory {
+  id Int @id @default(autoincrement())
+
+  name         String?
+  image        String?
+  type         String?
+  description  String?
+  workout_time Int?
+
+  workout_category    workout_category? @relation(fields: [workout_category_id], references: [id])
+  workout_category_id Int?
+  
+  workout_subcategory_category workout_subcategory_category[]
+  user_workout_subcategories user_workout_subcategories[]
+
+
+  createdAt                  DateTime                     @default(now()) @db.DateTime(0)
+  updatedAt                  DateTime                     @updatedAt @db.Timestamp(0)
+}
+
+model workout_subcategory_category {
+  id Int @id @default(autoincrement())
+
+  name  String?
+  image String?
+
+  workout_subcategory   workout_subcategory? @relation(fields: [workout_subcategory_id], references: [id])
+  workout_subcategory_id Int?
+
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.Timestamp(0)
+}
+
+model user_workouts {
+  id Int @id @default(autoincrement())
+
+  user    user @relation(fields: [user_id], references: [id])
+  user_id Int
+
+  workout_category    workout_category @relation(fields: [workout_category_id], references: [id])
+  workout_category_id Int
+
+  completed Boolean @default(false)
+  progress  Int?
+
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.Timestamp(0)
+
+  @@unique([user_id, workout_category_id])
+}
+
+model user_workout_subcategories {
+  id Int @id @default(autoincrement())
+
+  user    user @relation(fields: [user_id], references: [id])
+  user_id Int
+
+  workout_subcategory    workout_subcategory @relation(fields: [workout_subcategory_id], references: [id])
+  workout_subcategory_id Int
+
+  completed Boolean @default(false)
+  progress  Int?
+
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.Timestamp(0)
+
+  @@unique([user_id, workout_subcategory_id])
+}
+
+enum AccountType {
+  guest
+  real
+}
+
+enum UserType {
+  user
+  admin
+}
+
+enum WorkoutLevel {
+  beginner
+  intermediate
+  advance
+}
