@@ -447,7 +447,7 @@ const verifyOtp = async (req, res, next) => {
           create: {
             first_name: verified.first_name,
             last_name: verified.last_name,
-            last_name: verified.phone_number,
+            phone_number: verified.phone_number,
           },
         },
         authentication: {
