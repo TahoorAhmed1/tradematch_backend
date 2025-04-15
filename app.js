@@ -3,8 +3,7 @@ const cors = require("cors");
 const compression = require("compression");
 const { reqLogger } = require("@/configs/logger");
 const errorHandler = require("@/middlewares/errorHandler.middleware");
-const handleMultipartData = require("./middlewares/populateMultipartData.middleware");
-const uploadImage = require("./middlewares/uploadPicture.middleware");
+
 
 const app = express();
 
