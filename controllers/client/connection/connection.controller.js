@@ -122,6 +122,38 @@ const getAllPendingConnection = async (req, res, next) => {
   }
 };
 
+const getAllConfirmConnection = async (req, res, next) => {
+  const { userId } = req.user;
+
+  try {
+    const connections = await prisma.connection.findMany({
+      where: {
+        status: "ACCEPTED",
+        OR: [{ sender_id: userId }, { receiver_id: userId }],
+      },
+      include: {
+        sender: {
+          include: { profile: true },
+        },
+        receiver: {
+          include: { profile: true },
+        },
+      },
+    });
+
+    return res
+      .status(200)
+      .json(
+        updateSuccessResponse(
+          connections,
+          "All confirmed connections fetched successfully."
+        )
+      );
+  } catch (error) {
+    next(error);
+  }
+};
+
 const toggleBlockConnection = async (req, res, next) => {
   const { userId } = req.user;
   const { connection_id } = req.params;
@@ -164,4 +196,5 @@ module.exports = {
   acceptConnection,
   toggleBlockConnection,
   getAllPendingConnection,
+  getAllConfirmConnection,
 };

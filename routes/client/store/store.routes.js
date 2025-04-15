@@ -1,25 +1,26 @@
 const { Router } = require("express");
 const router = Router();
 const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
-const { updateProfileSchema } = require("@/validations/profile");
-const {
-  updateProfile,
-  getAllProfile,
-} = require("@/controllers/client/profile/profile.controller");
 const verifyUserByToken = require("@/middlewares/verifyUserByToken");
+const {
+  createStory,
+  getActiveStories,
+} = require("@/controllers/client/store/store.controller");
+const { storyCreateSchema, storyGetSchema } = require("@/validations/story");
 const handleMultipartData = require("@/middlewares/populateMultipartData.middleware");
 
-router.patch(
+router.post(
   "/",
   verifyUserByToken,
+  validateRequest(storyCreateSchema),
   handleMultipartData,
-  validateRequest(updateProfileSchema),
-  updateProfile
+  createStory
 );
 router.get(
-  "/all-user",
+  "/",
   verifyUserByToken,
-  getAllProfile
+  validateRequest(storyGetSchema),
+  getActiveStories
 );
 
 module.exports = router;

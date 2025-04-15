@@ -1,7 +1,13 @@
 const { prisma } = require("@/configs/prisma");
-const { createSuccessResponse, okResponse } = require("@/constants/responses");
+const {
+  createSuccessResponse,
+  okResponse,
+  updateSuccessResponse,
+  deleteSuccessResponse,
+} = require("@/constants/responses");
 const {
   uploadImageFromBuffer,
+  deleteCloudinaryImage,
 } = require("@/middlewares/uploadPicture.middleware");
 
 const createPost = async (req, res, next) => {
@@ -65,6 +71,75 @@ const createPost = async (req, res, next) => {
   }
 };
 
+const updatePost = async (req, res, next) => {
+  const { userId } = req.user;
+  const { post_id } = req.params;
+  const { content } = req.body;
+
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id: post_id },
+    });
+
+    if (!post || post.user_id !== userId) {
+      return res
+        .status(403)
+        .json(badRequestResponse("Unauthorized or post not found."));
+    }
+
+    const updatedPost = await prisma.post.update({
+      where: { id: post_id },
+      data: {
+        content,
+      },
+      include: {
+        attachments: true,
+      },
+    });
+
+    const response = updateSuccessResponse(updatedPost, "Post updated.");
+    return res.status(response.status.code).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deletePost = async (req, res, next) => {
+  const { userId } = req.user;
+  const { post_id } = req.params;
+
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id: post_id },
+      include: {
+        attachments: true,
+      },
+    });
+
+    if (!post || post.user_id !== userId) {
+      return res
+        .status(403)
+        .json(badRequestResponse("Unauthorized or post not found."));
+    }
+
+    await Promise.all(
+      post.attachments.map(async (file) => {
+        await deleteCloudinaryImage(file.url);
+        await prisma.file.delete({ where: { id: file.id } });
+      })
+    );
+
+    await prisma.post.delete({
+      where: { id: post_id },
+    });
+
+    const response = deleteSuccessResponse("Post deleted successfully.");
+    return res.status(response.status.code).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getAllVisiblePublicPost = async (req, res, next) => {
   try {
     const posts = await prisma.post.findMany({
@@ -72,8 +147,8 @@ const getAllVisiblePublicPost = async (req, res, next) => {
         visibility: "PUBLIC",
         is_deleted: false,
       },
-      orderBy:{
-        created_at:"desc"
+      orderBy: {
+        created_at: "desc",
       },
       include: {
         attachments: true,
@@ -127,7 +202,6 @@ const getAllVisiblePublicPost = async (req, res, next) => {
   }
 };
 
-
 const likePost = async (req, res, next) => {
   const { userId } = req.user;
   const { post_id } = req.body;
@@ -179,4 +253,11 @@ const likePost = async (req, res, next) => {
   }
 };
 
-module.exports = { createPost, getAllVisiblePublicPost, likePost };
+module.exports = {
+  deletePost,
+  createPost,
+  deletePost,
+  getAllVisiblePublicPost,
+  likePost,
+  updatePost,
+};

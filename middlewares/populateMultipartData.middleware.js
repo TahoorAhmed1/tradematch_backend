@@ -73,7 +73,6 @@ function handleMultipartData(req, res, next) {
       callback(null, true);
     },
   }).any();
-
   upload(req, res, (err) => {
     const error = handleMulterError(err);
     if (error) {

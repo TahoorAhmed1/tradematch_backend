@@ -1,9 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const verifyUserByToken = require("@/middlewares/verifyUserByToken");
-const { acceptConnection, toggleBlockConnection, sendConnection, getAllPendingConnection } = require("@/controllers/client/connection/connection.controller");
-const { createConnectionSchema, acceptConnectionSchema, toggleBlockSchema, getConnectionSchema } = require("@/validations/connection");
-const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
+const {
+  acceptConnection,
+  toggleBlockConnection,
+  sendConnection,
+  getAllPendingConnection,
+  getAllConfirmConnection,
+} = require("@/controllers/client/connection/connection.controller");
+const {
+  createConnectionSchema,
+  acceptConnectionSchema,
+  toggleBlockSchema,
+  getConnectionSchema,
+} = require("@/validations/connection");
+const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
 
 router.post(
   "/send",
@@ -24,9 +35,15 @@ router.patch(
   validateRequest(acceptConnectionSchema),
   acceptConnection
 );
+router.get(
+  "/accept-connection",
+  verifyUserByToken,
+  validateRequest(getConnectionSchema),
+  getAllConfirmConnection
+);
 
 router.patch(
-  "/connection/:connection_id/block",
+  "/:connection_id/block",
   verifyUserByToken,
   validateRequest(toggleBlockSchema),
   toggleBlockConnection

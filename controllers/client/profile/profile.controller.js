@@ -86,7 +86,7 @@ const updateProfile = async (req, res, next) => {
       data.cover_picture_url = await uploadImageFromBuffer(coverPic);
     }
 
-    const updated = await prisma.profile.update({
+    await prisma.profile.update({
       where: { user_id: userId },
       data: {
         ...data,
@@ -117,26 +117,56 @@ const updateProfile = async (req, res, next) => {
 };
 
 const getAllProfile = async (req, res, next) => {
-  const userId = req.user.userId; // extract userId properly
+  const userId = req.user.userId;
 
   try {
-    const profile = await prisma.profile.findMany({
+    const profiles = await prisma.profile.findMany({
       where: {
         user_id: {
-          not: userId, // use `not` instead of `notIn` for a single ID
+          not: userId,
         },
       },
       include: {
-        user: true,
+        user: {
+          include: {
+            connections_sent: {
+              where: {
+                status: "ACCEPTED",
+              },
+              select: {
+                id: true,
+              },
+            },
+            connections_received: {
+              where: {
+                status: "ACCEPTED",
+              },
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    const response = createSuccessResponse(profile);
+    const enrichedProfiles = profiles.map((profile) => {
+      const sent = profile.user.connections_sent?.length || 0;
+      const received = profile.user.connections_received?.length || 0;
+
+      return {
+        ...profile,
+        connectionCount: sent + received,
+      };
+    });
+
+    const response = createSuccessResponse(enrichedProfiles);
     return res.status(response.status.code).json(response);
   } catch (error) {
     next(error);
   }
 };
+
 
 
 module.exports = { createProfile, updateProfile, getAllProfile };

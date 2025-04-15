@@ -68,6 +68,7 @@ model user {
   is_super_user Boolean  @default(false)
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
+  story         story[]
 }
 
 enum user_type {
@@ -129,8 +130,6 @@ enum connection_status {
   REJECTED
 }
 
-
-
 enum visibility {
   PUBLIC
   GROUP_ONLY
@@ -156,6 +155,17 @@ model post {
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+}
+
+model story {
+  id        String   @id @default(uuid())
+  user      user     @relation(fields: [userId], references: [id])
+  userId    String
+  mediaUrl  String
+  type      String?
+  caption    String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 }
 
 model industry {
