@@ -14,7 +14,7 @@ const sendResendPassword = async (email) => {
   const mailOptions = {
     to: email,
     subject: "Password Reset",
-    html: `<p>Your password has been change</p>`,
+    html: `<p>Your password has been changed</p>`,
   };
 
   await transporter.createAndSendEmail(mailOptions);
