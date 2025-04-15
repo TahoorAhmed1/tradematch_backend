@@ -7,8 +7,7 @@
     "dev": "cross-env NODE_ENV=development nodemon server.js ",
     "deploy": "node server.js",
     "start": "node server.js",
-    "postinstall": "prisma generate && node -r module-alias/register"
-
+    "postinstall": "prisma generate"
   },
   "author": "",
   "license": "ISC",
