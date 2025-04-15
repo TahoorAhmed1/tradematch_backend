@@ -19,6 +19,7 @@ const verifyUserByToken = (req, res, next) => {
     return res.status(response.status.code).json(response);
   }
 
+
   req.user = decodedData;
 
   next();

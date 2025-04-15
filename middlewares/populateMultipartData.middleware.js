@@ -2,9 +2,10 @@ const path = require("path");
 const multer = require("multer");
 
 const { badRequestResponse } = require("@/constants/responses");
+const { logger } = require("@/configs/logger");
 
 const storage = multer.memoryStorage();
-const limits = { fileSize: 10 * 1024 * 1024 }; 
+const limits = { fileSize: 10 * 1024 * 1024 };
 
 const handleMulterError = (err) => {
   if (err && err instanceof multer.MulterError) {
@@ -25,21 +26,49 @@ function handleMultipartData(req, res, next) {
     limits,
     fileFilter: function (req, file, callback) {
       const ext = path.extname(file.originalname).toLowerCase();
+      const allowed = [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".jfif",
+        ".webp",
+        ".svg",
+        ".gif",
+        ".bmp",
+        ".tiff",
+        ".ico",
 
-      if (
-        ext !== ".png" &&
-        ext !== ".jpg" &&
-        ext !== ".jpeg" &&
-        ext !== ".webp" &&
-        ext !== ".pdf" &&
-        ext !== ".mp3" &&
-        ext !== ".wav"
-      ) {
-        return callback(
-          new Error(
-            "Only png, jpg/jpeg, webP images, pdf, mp3, or wav files are allowed"
-          )
-        );
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".txt",
+        ".csv",
+        ".rtf",
+
+        ".mp3",
+        ".wav",
+        ".aac",
+        ".ogg",
+        ".m4a",
+
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".webm",
+        ".mkv",
+
+        ".zip",
+        ".rar",
+        ".7z",
+      ];
+
+      if (!allowed.includes(ext)) {
+        return callback(new Error("Unsupported file type."));
       }
       callback(null, true);
     },
@@ -47,19 +76,14 @@ function handleMultipartData(req, res, next) {
 
   upload(req, res, (err) => {
     const error = handleMulterError(err);
-
     if (error) {
       const response = badRequestResponse(error);
-      return res.status(response.status.code).json(response);
-    }
-
-    if (!req.files || req.files.length === 0) {
-      const response = badRequestResponse("No file to upload.");
       return res.status(response.status.code).json(response);
     }
 
     next();
   });
 }
+
 
 module.exports = handleMultipartData;

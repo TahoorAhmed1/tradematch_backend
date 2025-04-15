@@ -1,200 +1,380 @@
-datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-model user {
-  id       Int     @id @default(autoincrement())
-  username String?
-  password String?
-  email    String? @unique
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-  type UserType @default(user)
-
-  accountType AccountType @default(guest)
+model verification {
+  id           String    @id @default(uuid())
+  email        String
+  password     String
+  first_name   String
+  last_name    String
+  social_id    String?
+  platform     String?
+  phone_number String?
+  type         user_type
 
   authentication authentication?
 
-  user_onboarding_response   user_onboarding_response[]
-  createdAt                  DateTime                     @default(now()) @db.DateTime(0)
-  updatedAt                  DateTime                     @updatedAt @db.Timestamp(0)
-  user_workouts              user_workouts[]
-  user_workout_subcategories user_workout_subcategories[]
-
-  @@index([id, email])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model authentication {
-  id Int @id @default(autoincrement())
+  id                String  @id @default(uuid())
+  email_otp         String?
+  is_email_verified Boolean @default(false)
 
-  user    user? @relation(fields: [user_id], references: [id])
-  user_id Int   @unique
+  verification_id String?       @unique
+  verification    verification? @relation(fields: [verification_id], references: [id], onDelete: Cascade)
 
-  isEmailVerified Boolean @default(false)
-  emailOtp        String?
+  user_id String? @unique
+  user    user?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now()) @db.DateTime(0)
-  updatedAt DateTime @updatedAt @db.Timestamp(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
-model onboarding_questions {
-  id Int @id @default(autoincrement())
+model user {
+  id String @id @default(uuid())
 
-  question         String?
-  onboarding_answers onboarding_answers[]
+  email     String    @unique
+  password  String
+  type      user_type
+  social_id String?
+  platform  String?
 
-  createdAt               DateTime                  @default(now()) @db.DateTime(0)
-  updatedAt               DateTime                  @updatedAt @db.Timestamp(0)
-  user_onboarding_answers user_onboarding_answers[]
+  is_verified Boolean @default(false)
 
-  @@index([id])
+  authentication authentication?
+
+  profile              profile?
+  posts                post[]
+  comments             comment[]
+  created_groups       group[]               @relation("group_creator")
+  groups               group_member[]
+  likes                like[]
+  shares               share[]               @relation("shared_by_user")
+  connections_sent     connection[]          @relation("connection_sender")
+  connections_received connection[]          @relation("connection_receiver")
+  messages             message[]             @relation("sent_messages")
+  conversation_member  conversation_member[]
+
+  is_deleted    Boolean  @default(false)
+  is_super_user Boolean  @default(false)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 }
 
-model onboarding_answers {
-  id Int @id @default(autoincrement())
-
-  onboarding_questions     onboarding_questions? @relation(fields: [questions_id], references: [id])
-  questions_id Int?
-
-  answer                 String?
-  user_onboarding_answers user_onboarding_answers[]
-
-  createdAt               DateTime                  @default(now()) @db.DateTime(0)
-  updatedAt               DateTime                  @updatedAt @db.Timestamp(0)
-
-  @@index([id])
+enum user_type {
+  INDIVIDUAL
+  BUSINESS
 }
 
-model user_onboarding_response {
-  id Int @id @default(autoincrement())
+model profile {
+  id           String  @id @default(uuid())
+  user         user    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id      String  @unique
+  first_name   String
+  last_name    String
+  phone_number String?
+  company_name String?
+  bio          String? @db.Text
+  website_link String?
+  country      String?
+  city_region  String?
+  region       region?
 
-  user    user @relation(fields: [user_id], references: [id])
-  user_id Int
+  linkedin  String?
+  twitter   String?
+  instagram String?
+  facebook  String?
 
-  user_onboarding_answers user_onboarding_answers[]
+  contact_info String?
 
-  createdAt DateTime @default(now()) @db.DateTime(0)
-  updatedAt DateTime @updatedAt @db.Timestamp(0)
+  profile_picture_url String?
+  cover_picture_url   String?
 
-  @@index([id, user_id])
+  industry_subcategories industry_subcategory[] @relation("ProfileSubcategories")
+
+  is_deleted Boolean  @default(false)
+  updated_at DateTime @updatedAt
 }
 
-model user_onboarding_answers {
-  id Int @id @default(autoincrement())
+model connection {
+  id String @id @default(uuid())
 
-  question    onboarding_questions @relation(fields: [question_id], references: [id])
-  question_id Int
+  sender    user   @relation("connection_sender", fields: [sender_id], references: [id], onDelete: Cascade)
+  sender_id String
 
-  answer    onboarding_answers? @relation(fields: [answer_id], references: [id])
-  answer_id Int
+  receiver    user   @relation("connection_receiver", fields: [receiver_id], references: [id], onDelete: Cascade)
+  receiver_id String
 
-  user_onboarding_response    user_onboarding_response? @relation(fields: [user_onboarding_response_id], references: [id])
-  user_onboarding_response_id Int?
+  status     connection_status @default(PENDING)
+  is_block   Boolean           @default(false)
+  is_deleted Boolean           @default(false)
+  created_at DateTime          @default(now())
+  updated_at DateTime          @updatedAt
 
-  createdAt DateTime @default(now()) @db.DateTime(0)
-  updatedAt DateTime @updatedAt @db.Timestamp(0)
+  @@unique([sender_id, receiver_id])
 }
 
-model workout_category {
-  id Int @id @default(autoincrement())
-
-  name                String?
-  image               String?
-  workout_level       WorkoutLevel?
-  video               String?
-
-  workout_subcategory workout_subcategory[]
-  user_workouts user_workouts[]
-
-  createdAt     DateTime        @default(now()) @db.DateTime(0)
-  updatedAt     DateTime        @updatedAt @db.Timestamp(0)
+enum connection_status {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
-model workout_subcategory {
-  id Int @id @default(autoincrement())
-
-  name         String?
-  image        String?
-  type         String?
-  description  String?
-  workout_time Int?
-
-  workout_category    workout_category? @relation(fields: [workout_category_id], references: [id])
-  workout_category_id Int?
-  
-  workout_subcategory_category workout_subcategory_category[]
-  user_workout_subcategories user_workout_subcategories[]
-
-
-  createdAt                  DateTime                     @default(now()) @db.DateTime(0)
-  updatedAt                  DateTime                     @updatedAt @db.Timestamp(0)
+enum region {
+  WORLDWIDE
+  NA
+  LATM
+  EMEA
+  EUROPE
+  APAC
+  OTHER
 }
 
-model workout_subcategory_category {
-  id Int @id @default(autoincrement())
-
-  name  String?
-  image String?
-
-  workout_subcategory   workout_subcategory? @relation(fields: [workout_subcategory_id], references: [id])
-  workout_subcategory_id Int?
-
-  createdAt DateTime @default(now()) @db.DateTime(0)
-  updatedAt DateTime @updatedAt @db.Timestamp(0)
+enum visibility {
+  PUBLIC
+  GROUP_ONLY
 }
 
-model user_workouts {
-  id Int @id @default(autoincrement())
+model post {
+  id String @id @default(uuid())
 
-  user    user @relation(fields: [user_id], references: [id])
-  user_id Int
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id String
 
-  workout_category    workout_category @relation(fields: [workout_category_id], references: [id])
-  workout_category_id Int
+  content String? @db.Text
 
-  completed Boolean @default(false)
-  progress  Int?
+  visibility visibility @default(PUBLIC)
 
-  createdAt DateTime @default(now()) @db.DateTime(0)
-  updatedAt DateTime @updatedAt @db.Timestamp(0)
+  attachments file[]
+  comments    comment[]
+  shares      share[]      @relation("post_shares")
+  likes       like[]
+  group_posts group_post[]
 
-  @@unique([user_id, workout_category_id])
+  is_deleted Boolean @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
-model user_workout_subcategories {
-  id Int @id @default(autoincrement())
+model industry {
+  id            String                 @id @default(uuid())
+  name          String                 @unique
+  subcategories industry_subcategory[]
 
-  user    user @relation(fields: [user_id], references: [id])
-  user_id Int
-
-  workout_subcategory    workout_subcategory @relation(fields: [workout_subcategory_id], references: [id])
-  workout_subcategory_id Int
-
-  completed Boolean @default(false)
-  progress  Int?
-
-  createdAt DateTime @default(now()) @db.DateTime(0)
-  updatedAt DateTime @updatedAt @db.Timestamp(0)
-
-  @@unique([user_id, workout_subcategory_id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
-enum AccountType {
-  guest
-  real
+model industry_subcategory {
+  id String @id @default(uuid())
+
+  name        String
+  industry_id String
+
+  industry industry  @relation(fields: [industry_id], references: [id])
+  profiles profile[] @relation("ProfileSubcategories")
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
-enum UserType {
-  user
-  admin
+model file {
+  id String @id @default(uuid())
+
+  url  String?
+  type file_type
+
+  post    post?   @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  post_id String?
+
+  message    message? @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  message_id String?
+
+  filename String?
+  size     Int?
+  mimeType String?
+
+  is_deleted Boolean @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
-enum WorkoutLevel {
-  beginner
-  intermediate
-  advance
+enum file_type {
+  IMAGE
+  PDF
+  TEXT
+  SPREADSHEET
+  VIDEO
+}
+
+model comment {
+  id      String @id @default(uuid())
+  content String @db.Text
+
+  post    post   @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  post_id String
+
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id String
+
+  replies comment[] @relation("comment_replies")
+
+  parent    comment? @relation("comment_replies", fields: [parent_id], references: [id])
+  parent_id String?
+
+  is_deleted Boolean @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model share {
+  id String @id @default(uuid())
+
+  post    post   @relation("post_shares", fields: [post_id], references: [id], onDelete: Cascade)
+  post_id String
+
+  shared_by    user   @relation("shared_by_user", fields: [shared_by_id], references: [id], onDelete: Cascade)
+  shared_by_id String
+
+  group    group?  @relation(fields: [group_id], references: [id])
+  group_id String?
+
+  content String? @db.Text
+
+  created_at DateTime @default(now())
+  is_deleted Boolean  @default(false)
+}
+
+model message {
+  id              String @id @default(uuid())
+  conversation_id String
+  sender_id       String
+
+  content    String?  @db.Text
+  is_read    Boolean  @default(false)
+  is_deleted Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  conversation conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender       user         @relation("sent_messages", fields: [sender_id], references: [id], onDelete: Cascade)
+  attachments  file[]
+}
+
+model conversation_member {
+  id              String                  @id @default(uuid())
+  conversation_id String
+  user_id         String
+  role            conversation_group_role @default(MEMBER)
+
+  joined_at  DateTime @default(now())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  conversation conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  user         user         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([conversation_id, user_id])
+}
+
+enum conversation_group_role {
+  ADMIN
+  MEMBER
+}
+
+model conversation {
+  id       String  @id @default(uuid())
+  name     String?
+  is_group Boolean @default(false)
+
+  messages message[]
+  members  conversation_member[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model group {
+  id              String  @id @default(uuid())
+  name            String
+  description     String? @db.Text
+  category        String?
+  location        String?
+  is_private      Boolean @default(false)
+  cover_image_url String?
+
+  creator    user   @relation("group_creator", fields: [creator_id], references: [id])
+  creator_id String
+
+  members group_member[]
+  posts   group_post[]
+  shares  share[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  is_deleted Boolean  @default(false)
+}
+
+model group_member {
+  id String @id @default(uuid())
+
+  group    group  @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id String
+
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id String
+
+  role group_role @default(MEMBER)
+
+  joined_at  DateTime @default(now())
+  is_deleted Boolean  @default(false)
+
+  @@unique([group_id, user_id])
+}
+
+enum group_role {
+  MEMBER
+  MODERATOR
+  ADMIN
+}
+
+model group_post {
+  id String @id @default(uuid())
+
+  group    group  @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id String
+
+  post    post   @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  post_id String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([group_id, post_id])
+}
+
+model like {
+  id String @id @default(uuid())
+
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id String
+
+  post    post   @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  post_id String
+
+  created_at DateTime @default(now())
+  is_deleted Boolean  @default(false)
+
+  @@unique([user_id, post_id])
 }

@@ -22,4 +22,46 @@ const uploadImage = async (req, res, next) => {
   }
 };
 
-module.exports = uploadImage;
+
+const uploadImageFromBuffer = async (file) => {
+  const b64 = Buffer.from(file.buffer).toString("base64");
+  const dataURI = `data:${file.mimetype};base64,${b64}`;
+
+  const result = await cloudinary.uploader.upload(dataURI, {
+    resource_type: "auto",
+    folder: `assets/${file.fieldname}`,
+    format: "webp",
+    quality: "auto:good",
+    public_id: `${file.originalname.split(".")[0]}-${Date.now()}`,
+  });
+
+  return result.secure_url;
+};
+
+const deleteCloudinaryImage = async (url) => {
+  if (!url) return;
+
+  try {
+    const baseUrl = new URL(url);
+    const parts = baseUrl.pathname.split("/");
+
+    const versionIndex = parts.findIndex((p) => p.startsWith("v"));
+    const folderAndFile = parts.slice(versionIndex + 1);
+
+    if (folderAndFile?.length < 2) {
+      logger.info(" Cloudinary path invalid, skipping deletion");
+      return;
+    }
+
+    const publicIdWithExt = folderAndFile.join("/");
+    const publicId = publicIdWithExt.replace(/\.[^/.]+$/, "");
+
+    await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+    });
+  } catch (err) {
+    logger.info("Error deleting Cloudinary image:", err.message);
+  }
+};
+
+module.exports = { uploadImage, uploadImageFromBuffer, deleteCloudinaryImage };

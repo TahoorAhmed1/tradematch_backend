@@ -1,24 +1,108 @@
+const { userTypeEnum } = require("@/enums");
 const Joi = require("joi");
 
-const userRegisterRealSchema = Joi.object({
+const userRegisterSchema = Joi.object({
   query: Joi.object({}),
   params: Joi.object({}),
   body: Joi.object({
-    username: Joi.string().required(),
+    email: Joi.string().email().required(),
     password: Joi.string().min(6).required(),
-    email: Joi.string().email(),
+    first_name: Joi.string().min(2).required(),
+    first_name: Joi.string().min(2).required(),
+    phone_number: Joi.string().optional(),
     social_id: Joi.string().optional(),
     platform: Joi.string().optional(),
-    type: Joi.string().optional(),
+    type: Joi.string()
+      .valid(...userTypeEnum)
+      .required(),
   }),
 });
-const userRegisterGuestSchema = Joi.object({
+
+const userLoginSchema = Joi.object({
+  query: Joi.object({}),
+  params: Joi.object({}),
+  body: Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+  }),
+});
+
+const forgotSchema = Joi.object({
+  query: Joi.object({}),
+  params: Joi.object({}),
+  body: Joi.object({
+    email: Joi.string().email(),
+  }),
+});
+
+const socialLoginSchema = Joi.object({
+  query: Joi.object({}),
+  params: Joi.object({}),
+  body: Joi.object({
+    email: Joi.string().email().required(),
+    first_name: Joi.string().min(2).required(),
+    last_name: Joi.string().min(2).required(),
+    social_id: Joi.string().required(),
+    platform: Joi.string().required(),
+    type: Joi.string()
+      .valid(...userTypeEnum)
+      .required(),
+  }),
+});
+
+const getUserByIdSchema = Joi.object({
+  query: Joi.object({}),
+  params: Joi.object({
+    user_id: Joi.number().min(1).required(),
+  }),
+  body: Joi.object({}),
+});
+
+const getAllUserSchema = Joi.object({
+  query: Joi.object({}),
+  params: Joi.object({}),
+  body: Joi.object({}),
+});
+
+const ResetPasswordSchema = Joi.object({
+  query: Joi.object({}),
+  params: Joi.object({}),
+  body: Joi.object({
+    previous_password: Joi.string().min(6).required(),
+    new_password: Joi.string().min(6).required(),
+  }),
+});
+
+const forgotPasswordSchema = Joi.object({
+  query: Joi.object({}),
+  params: Joi.object({}),
+  body: Joi.object({
+    new_password: Joi.string().min(6).required(),
+  }),
+});
+
+const verifyOtpSchema = Joi.object({
+  query: Joi.object({}),
+  params: Joi.object({}),
+  body: Joi.object({
+    otp: Joi.string().required(),
+  }),
+});
+const regenerateOtpSchema = Joi.object({
   query: Joi.object({}),
   params: Joi.object({}),
   body: Joi.object({}),
 });
 
 module.exports = {
-  userRegisterGuestSchema,
-  userRegisterRealSchema,
+  verifyOtpSchema,
+  userRegisterSchema,
+  userLoginSchema,
+  socialLoginSchema,
+  ResetPasswordSchema,
+  forgotPasswordSchema,
+  forgotSchema,
+  getAllUserSchema,
+  getUserByIdSchema,
+  regenerateOtpSchema,
 };
