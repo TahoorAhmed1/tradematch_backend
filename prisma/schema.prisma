@@ -87,7 +87,7 @@ model profile {
   website_link String?
   country      String?
   city_region  String?
-  region       region?
+  region       String?
 
   linkedin  String?
   twitter   String?
@@ -129,15 +129,7 @@ enum connection_status {
   REJECTED
 }
 
-enum region {
-  WORLDWIDE
-  NA
-  LATM
-  EMEA
-  EUROPE
-  APAC
-  OTHER
-}
+
 
 enum visibility {
   PUBLIC
