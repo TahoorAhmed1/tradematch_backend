@@ -7,7 +7,7 @@ const { reqLogger } = require("@/configs/logger");
 
 const app = express();
 
-require("@/configs/redis");
+require("./configs/redis");
 
 app.use(compression());
 
