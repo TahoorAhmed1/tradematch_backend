@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const router = Router();
-const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
+const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
 
 const {
   userRegisterSchema,

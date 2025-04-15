@@ -13,7 +13,7 @@ const {
   likePostSchema,
   getPostSchema,
 } = require("@/validations/post");
-const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
+const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
 
 router.post(
   "/",

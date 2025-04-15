@@ -1,5 +1,5 @@
 const { createComment, updateComment, deleteComment } = require("@/controllers/client/comment/comment.controller");
-const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
+const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
 const verifyUserByToken = require("@/middlewares/verifyUserByToken");
 const { updateCommentSchema, createCommentSchema } = require("@/validations/comment");
 const express = require("express");
