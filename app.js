@@ -31,8 +31,8 @@ app.use(
 
 app.use(reqLogger);
 
-app.use("/api", require("@/routes/auth"));
-app.use("/api/client", require("@/routes/client"));
+app.use("/api", require("./routes/auth"));
+app.use("/api/client", require("./routes/client"));
 
 // app.use(errorHandler);
 
