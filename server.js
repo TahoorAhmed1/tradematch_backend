@@ -1,4 +1,5 @@
 require("module-alias/register");
+
 const env = require("dotenv");
 const path = require("path");
 const app = require("./app");

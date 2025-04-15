@@ -1,9 +1,9 @@
+require("module-alias/register");
 const express = require("express");
 const cors = require("cors");
 const compression = require("compression");
 const { reqLogger } = require("@/configs/logger");
 const errorHandler = require("@/middlewares/errorHandler.middleware");
-
 
 const app = express();
 
