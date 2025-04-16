@@ -12,7 +12,7 @@ app.use(compression());
 
 app.use(
   cors({
-    origin: "https://your-frontend-domain.com",
+    origin: "http://localhost:3000",
     credentials: true,
   })
 );
