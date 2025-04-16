@@ -10,7 +10,11 @@ require("./configs/redis");
 
 app.use(compression());
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
 app.use(
   express.json({
