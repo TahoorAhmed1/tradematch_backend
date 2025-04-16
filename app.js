@@ -5,6 +5,7 @@ const compression = require("compression");
 const { reqLogger } = require("@/configs/logger");
 const errorHandler = require("@/middlewares/errorHandler.middleware");
 
+
 const app = express();
 
 require("@/configs/redis");
