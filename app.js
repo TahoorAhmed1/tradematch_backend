@@ -12,7 +12,8 @@ app.use(compression());
 
 app.use(
   cors({
-    origin: "*",
+    origin: "https://your-frontend-domain.com",
+    credentials: true,
   })
 );
 
