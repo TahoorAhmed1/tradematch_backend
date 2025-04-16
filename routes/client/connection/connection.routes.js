@@ -1,20 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const verifyUserByToken = require("@/middlewares/verifyUserByToken");
+const verifyUserByToken = require("../../../middlewares/verifyUserByToken");
 const {
   acceptConnection,
   toggleBlockConnection,
   sendConnection,
   getAllPendingConnection,
   getAllConfirmConnection,
-} = require("@/controllers/client/connection/connection.controller");
+} = require("../../../controllers/client/connection/connection.controller");
 const {
   createConnectionSchema,
   acceptConnectionSchema,
   toggleBlockSchema,
   getConnectionSchema,
-} = require("@/validations/connection");
-const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
+} = require("../../../validations/connection");
+const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
 
 router.post(
   "/send",

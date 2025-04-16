@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const router = Router();
-const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
+const validateRequest = require("../../middlewares/validateRequestJoi.middleware");
 
 const {
   userRegisterSchema,
@@ -10,7 +10,7 @@ const {
   forgotSchema,
   forgotPasswordSchema,
   verifyOtpSchema,
-} = require("@/validations/auth");
+} = require("../../validations/auth");
 
 const {
   register,
@@ -22,10 +22,10 @@ const {
   verifyOtp,
   getUserId,
   resendOtp,
-} = require("@/controllers/auth/auth.controllers");
-const verifyUserByToken = require("@/middlewares/verifyUserByToken");
-const verifyOTP = require("@/middlewares/verifyOtp");
-const verifyOtpAuthToken = require("@/middlewares/verifyOtpAuthToken.middleware");
+} = require("../../controllers/auth/auth.controllers");
+const verifyUserByToken = require("../../middlewares/verifyUserByToken");
+const verifyOTP = require("../../middlewares/verifyOtp");
+const verifyOtpAuthToken = require("../../middlewares/verifyOtpAuthToken.middleware");
 
 router.post("/register", validateRequest(userRegisterSchema), register);
 router.post("/login", validateRequest(userLoginSchema), login);

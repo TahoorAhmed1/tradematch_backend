@@ -1,8 +1,11 @@
-const { prisma } = require("@/configs/prisma");
-const { badRequestResponse, okResponse } = require("@/constants/responses");
+const { prisma } = require("../../../configs/prisma");
+const {
+  badRequestResponse,
+  okResponse,
+} = require("../../../constants/responses");
 const {
   uploadImageFromBuffer,
-} = require("@/middlewares/uploadPicture.middleware");
+} = require("../../../middlewares/uploadPicture.middleware");
 
 const createStory = async (req, res, next) => {
   try {

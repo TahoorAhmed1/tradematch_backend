@@ -1,9 +1,9 @@
-const { prisma } = require("@/configs/prisma");
+const { prisma } = require("../../../configs/prisma");
 const {
   badRequestResponse,
   createSuccessResponse,
   updateSuccessResponse,
-} = require("@/constants/responses");
+} = require("../../../constants/responses");
 
 const sendConnection = async (req, res, next) => {
   const { userId } = req.user;
@@ -103,13 +103,13 @@ const getAllPendingConnection = async (req, res, next) => {
         receiver_id: userId,
         status: "PENDING",
       },
-      include:{
-        sender:{
-          include:{
-            profile:true
-          }
-        }
-      }
+      include: {
+        sender: {
+          include: {
+            profile: true,
+          },
+        },
+      },
     });
 
     return res

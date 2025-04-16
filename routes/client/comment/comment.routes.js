@@ -1,10 +1,14 @@
-const { createComment, updateComment, deleteComment } = require("@/controllers/client/comment/comment.controller");
-const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
-const verifyUserByToken = require("@/middlewares/verifyUserByToken");
+const {
+  createComment,
+  updateComment,
+  deleteComment,
+} = require("../../../controllers/client/comment/comment.controller");
+const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
+const verifyUserByToken = require("../../../middlewares/verifyUserByToken");
 const {
   updateCommentSchema,
   createCommentSchema,
-} = require("@/validations/comment");
+} = require("../../../validations/comment");
 const express = require("express");
 const router = express.Router();
 

@@ -1,4 +1,4 @@
-const { regionEnum } = require("@/enums");
+const { regionEnum } = require("../../enums");
 const Joi = require("joi");
 
 const updateProfileSchema = Joi.object({

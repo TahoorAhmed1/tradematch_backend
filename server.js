@@ -2,10 +2,7 @@ const env = require("dotenv");
 const path = require("path");
 const app = require("./app");
 const { logger } = require("./configs/logger");
-const moduleAlias = require("module-alias");
 
-moduleAlias.addAlias("@", path.join(__dirname));
-require("module-alias/register");
 
 const envFile =
   process.env.NODE_ENV == "development"

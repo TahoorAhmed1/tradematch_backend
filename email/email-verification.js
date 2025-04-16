@@ -1,4 +1,4 @@
-const transporter = require("@/configs/email");
+const transporter = require("../configs/email");
 
 const sendEmailVerificationOtp = async (email, otp) => {
   const mailOptions = {

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const verifyUserByToken = require("@/middlewares/verifyUserByToken");
-const handleMultipartData = require("@/middlewares/populateMultipartData.middleware");
+const verifyUserByToken = require("../../../middlewares/verifyUserByToken");
+const handleMultipartData = require("../../../middlewares/populateMultipartData.middleware");
 const {
   createPost,
   likePost,
@@ -9,13 +9,13 @@ const {
   getAllVisiblePublicPost,
   updatePost,
   deletePost,
-} = require("@/controllers/client/post/post.controller");
+} = require("../../../controllers/client/post/post.controller");
 const {
   createPostSchema,
   likePostSchema,
   getPostSchema,
   updatePostSchema,
-} = require("@/validations/post");
+} = require("../../../validations/post");
 const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
 
 router.post(

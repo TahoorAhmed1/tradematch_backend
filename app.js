@@ -1,14 +1,12 @@
-require("module-alias/register");
 const express = require("express");
 const cors = require("cors");
 const compression = require("compression");
-const { reqLogger } = require("@/configs/logger");
-const errorHandler = require("@/middlewares/errorHandler.middleware");
-
+const { reqLogger } = require("./configs/logger");
+const errorHandler = require("./middlewares/errorHandler.middleware");
 
 const app = express();
 
-require("@/configs/redis");
+require("./configs/redis");
 
 app.use(compression());
 
@@ -32,8 +30,8 @@ app.use(
 
 app.use(reqLogger);
 
-app.use("/api", require("@/routes/auth"));
-app.use("/api/client", require("@/routes/client"));
+app.use("/api", require("./routes/auth"));
+app.use("/api/client", require("./routes/client"));
 
 app.use(errorHandler);
 

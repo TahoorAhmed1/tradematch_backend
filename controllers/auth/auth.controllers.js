@@ -1,26 +1,28 @@
-const { createAndSendEmail } = require("@/configs/email");
-const { prisma } = require("@/configs/prisma");
-const redis = require("@/configs/redis");
+const { createAndSendEmail } = require("../../configs/email");
+const { prisma } = require("../../configs/prisma");
+const redis = require("../../configs/redis");
 const {
   badRequestResponse,
   createSuccessResponse,
   okResponse,
   updateSuccessResponse,
   unauthorizedResponse,
-} = require("@/constants/responses");
+} = require("../../constants/responses");
 const {
   sendEmailVerificationOtp,
   sendResendPassword,
-} = require("@/email/email-verification");
-const { Email_Template_Reminder } = require("@/email/forgetPasswordTemplete");
+} = require("../../email/email-verification");
+const {
+  Email_Template_Reminder,
+} = require("../../email/forgetPasswordTemplete");
 const {
   hashPassword,
   comparePasswords,
   createToken,
   createOtpToken,
   generateOTP,
-} = require("@/services/auth.service");
-const { unixTimeInMinutes } = require("@/services/time.service");
+} = require("../../services/auth.service");
+const { unixTimeInMinutes } = require("../../services/time.service");
 
 const emailVerification = process.env.EMAIL_VERIFICATION;
 

@@ -1,13 +1,13 @@
 const { Router } = require("express");
 const router = Router();
-const validateRequest = require("@/middlewares/validateRequestJoi.middleware");
-const { updateProfileSchema } = require("@/validations/profile");
+const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
+const { updateProfileSchema } = require("../../../validations/profile");
 const {
   updateProfile,
   getAllProfile,
-} = require("@/controllers/client/profile/profile.controller");
-const verifyUserByToken = require("@/middlewares/verifyUserByToken");
-const handleMultipartData = require("@/middlewares/populateMultipartData.middleware");
+} = require("../../../controllers/client/profile/profile.controller");
+const verifyUserByToken = require("../../../middlewares/verifyUserByToken");
+const handleMultipartData = require("../../../middlewares/populateMultipartData.middleware");
 
 router.patch(
   "/",

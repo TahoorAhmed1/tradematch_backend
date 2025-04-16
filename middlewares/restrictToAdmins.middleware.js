@@ -1,4 +1,4 @@
-const verifyAndDecodeToken = require("@/utils/verifyDecodeToken");
+const verifyAndDecodeToken = require("../utils/verifyDecodeToken");
 const {
   forbiddenResponse,
   badRequestResponse,

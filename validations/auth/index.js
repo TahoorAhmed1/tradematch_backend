@@ -1,4 +1,4 @@
-const { userTypeEnum } = require("@/enums");
+const { userTypeEnum } = require("../../enums");
 const Joi = require("joi");
 
 const userRegisterSchema = Joi.object({

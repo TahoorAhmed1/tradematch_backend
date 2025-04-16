@@ -1,4 +1,4 @@
-const cloudinary = require("@/configs/cloudinary");
+const cloudinary = require("../configs/cloudinary");
 const { okResponse } = require("../constants/responses");
 const { logger } = require("../configs/logger");
 
@@ -21,7 +21,6 @@ const uploadImage = async (req, res, next) => {
     return next(error);
   }
 };
-
 
 const uploadImageFromBuffer = async (file) => {
   const b64 = Buffer.from(file.buffer).toString("base64");

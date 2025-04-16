@@ -1,9 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { createGroupSchema } = require("@/validations/group");
-const { createGroup, updateGroup } = require("@/controllers/client/group/group.controller");
-const verifyUserByToken = require("@/middlewares/verifyUserByToken");
-const handleMultipartData = require("@/middlewares/populateMultipartData.middleware");
+const { createGroupSchema } = require("../../../validations/group");
+const {
+  createGroup,
+  updateGroup,
+} = require("../../../controllers/client/group/group.controller");
+const verifyUserByToken = require("../../../middlewares/verifyUserByToken");
+const handleMultipartData = require("../../../middlewares/populateMultipartData.middleware");
 
 router.post(
   "/group",

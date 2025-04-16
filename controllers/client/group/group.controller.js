@@ -1,12 +1,12 @@
-const { prisma } = require("@/configs/prisma");
+const { prisma } = require("../../../configs/prisma");
 const {
   createSuccessResponse,
   updateSuccessResponse,
-} = require("@/constants/responses");
+} = require("../../../constants/responses");
 const {
   deleteCloudinaryImage,
   uploadImageFromBuffer,
-} = require("@/middlewares/uploadPicture.middleware");
+} = require("../../../middlewares/uploadPicture.middleware");
 
 const createGroup = async (req, res, next) => {
   const { userId } = req.user;

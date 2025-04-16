@@ -1,8 +1,7 @@
 const path = require("path");
 const multer = require("multer");
 
-const { badRequestResponse } = require("@/constants/responses");
-const { logger } = require("@/configs/logger");
+const { badRequestResponse } = require("../constants/responses");
 
 const storage = multer.memoryStorage();
 const limits = { fileSize: 10 * 1024 * 1024 };

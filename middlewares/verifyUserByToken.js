@@ -1,4 +1,4 @@
-const verifyAndDecodeToken = require("@/utils/verifyDecodeToken");
+const verifyAndDecodeToken = require("../utils/verifyDecodeToken");
 const {
   forbiddenResponse,
   badRequestResponse,
@@ -18,7 +18,6 @@ const verifyUserByToken = (req, res, next) => {
     const response = forbiddenResponse("Invalid token.");
     return res.status(response.status.code).json(response);
   }
-
 
   req.user = decodedData;
 

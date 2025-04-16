@@ -1,14 +1,14 @@
-const { prisma } = require("@/configs/prisma");
-const redis = require("@/configs/redis");
+const { prisma } = require("../../../configs/prisma");
+const redis = require("../../../configs/redis");
 const {
   badRequestResponse,
   createSuccessResponse,
   updateSuccessResponse,
-} = require("@/constants/responses");
+} = require("../../../constants/responses");
 const {
   uploadImageFromBuffer,
   deleteCloudinaryImage,
-} = require("@/middlewares/uploadPicture.middleware");
+} = require("../../../middlewares/uploadPicture.middleware");
 
 const createProfile = async (req, res, next) => {
   const { userId } = req.user;
@@ -166,7 +166,5 @@ const getAllProfile = async (req, res, next) => {
     next(error);
   }
 };
-
-
 
 module.exports = { createProfile, updateProfile, getAllProfile };

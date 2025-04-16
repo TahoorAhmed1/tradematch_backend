@@ -1,14 +1,14 @@
-const { prisma } = require("@/configs/prisma");
+const { prisma } = require("../../../configs/prisma");
 const {
   createSuccessResponse,
   okResponse,
   updateSuccessResponse,
   deleteSuccessResponse,
-} = require("@/constants/responses");
+} = require("../../../constants/responses");
 const {
   uploadImageFromBuffer,
   deleteCloudinaryImage,
-} = require("@/middlewares/uploadPicture.middleware");
+} = require("../../../middlewares/uploadPicture.middleware");
 
 const createPost = async (req, res, next) => {
   const { userId } = req.user;

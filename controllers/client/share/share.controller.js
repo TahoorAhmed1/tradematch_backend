@@ -1,5 +1,5 @@
-const { prisma } = require("@/configs/prisma");
-const { createSuccessResponse } = require("@/constants/responses");
+const { prisma } = require("../../../configs/prisma");
+const { createSuccessResponse } = require("../../../constants/responses");
 
 const sharePost = async (req, res, next) => {
   const { userId } = req.user;

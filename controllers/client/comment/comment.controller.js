@@ -1,11 +1,11 @@
-const { prisma } = require("@/configs/prisma");
+const { prisma } = require("../../../configs/prisma");
 const {
   createSuccessResponse,
   updateSuccessResponse,
   deleteSuccessResponse,
   badRequestResponse,
   notFoundResponse,
-} = require("@/constants/responses");
+} = require("../../../constants/responses");
 
 const createComment = async (req, res, next) => {
   const { userId } = req.user;
@@ -37,14 +37,18 @@ const updateComment = async (req, res, next) => {
   const { content } = req.body;
 
   try {
-    const comment = await prisma.comment.findUnique({ where: { id: comment_id } });
+    const comment = await prisma.comment.findUnique({
+      where: { id: comment_id },
+    });
 
     if (!comment || comment.is_deleted) {
       return res.status(404).json(notFoundResponse("Comment not found."));
     }
 
     if (comment.user_id !== userId) {
-      return res.status(403).json(badRequestResponse("You can only edit your own comment."));
+      return res
+        .status(403)
+        .json(badRequestResponse("You can only edit your own comment."));
     }
 
     const updated = await prisma.comment.update({
@@ -66,14 +70,18 @@ const deleteComment = async (req, res, next) => {
   const { comment_id } = req.params;
 
   try {
-    const comment = await prisma.comment.findUnique({ where: { id: comment_id } });
+    const comment = await prisma.comment.findUnique({
+      where: { id: comment_id },
+    });
 
     if (!comment || comment.is_deleted) {
       return res.status(404).json(notFoundResponse("Comment not found."));
     }
 
     if (comment.user_id !== userId) {
-      return res.status(403).json(badRequestResponse("You can only delete your own comment."));
+      return res
+        .status(403)
+        .json(badRequestResponse("You can only delete your own comment."));
     }
 
     await prisma.comment.update({
