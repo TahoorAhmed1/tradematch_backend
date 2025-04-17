@@ -23,7 +23,6 @@ const createStory = async (req, res, next) => {
       console.log('file', file)
       url = await uploadVideoFromBuffer(file);
     } 
-
     const story = await prisma.story.create({
       data: {
         userId,
