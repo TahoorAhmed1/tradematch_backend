@@ -1,3 +1,4 @@
+const { pusher } = require("../../../configs/pusher");
 const { prisma } = require("../../../configs/prisma");
 const {
   createSuccessResponse,
@@ -6,6 +7,7 @@ const {
   badRequestResponse,
   notFoundResponse,
 } = require("../../../constants/responses");
+
 
 const createComment = async (req, res, next) => {
   const { userId } = req.user;
@@ -20,9 +22,44 @@ const createComment = async (req, res, next) => {
         parent_id: parent_id || null,
       },
       include: {
-        user: true,
+        user: {
+          include: {
+            profile: true
+          }
+        },
+        post: {
+          include: {
+            user: true,
+          },
+        },
       },
     });
+
+    if (comment.post.user_id !== userId) {
+      const notification = await prisma.notification.create({
+        data: {
+          user_id: comment.post.user_id,
+          avatar: comment?.user?.profile?.profile_picture_url,
+          type: "",
+          message: `${comment?.user?.profile?.first_name} ${comment?.user?.profile?.last_name} commented on your post.`,
+          metadata: {
+            postId: post_id,
+            commentId: comment.id,
+          },
+        },
+      });
+
+      await pusher.trigger(`user-${comment.post.user_id}`, "notification", {
+        avatar: comment?.user?.profile?.profile_picture_url,
+        message: `${comment?.user?.profile?.first_name} ${comment?.user?.profile?.last_name} commented on your post.`,
+        type: "COMMENT",
+        metadata: {
+          postId: post_id,
+          commentId: comment.id,
+        },
+        created_at: notification.created_at,
+      });
+    }
 
     const response = createSuccessResponse(comment, "Comment posted.");
     return res.status(response.status.code).json(response);
@@ -30,6 +67,7 @@ const createComment = async (req, res, next) => {
     next(error);
   }
 };
+
 
 const updateComment = async (req, res, next) => {
   const { userId } = req.user;

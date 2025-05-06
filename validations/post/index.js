@@ -3,6 +3,8 @@ const Joi = require("joi");
 const createPostSchema = Joi.object({
   body: Joi.object({
     content: Joi.string().allow("", null).optional(),
+    group_id: Joi.string().uuid().optional()
+
   }),
   query: Joi.object({}),
   params: Joi.object({}),
@@ -20,8 +22,13 @@ const updatePostSchema = Joi.object({
 
 const getPostSchema = Joi.object({
   body: Joi.object({}),
-  query: Joi.object({}),
-  params: Joi.object({}),
+  query: Joi.object({
+    // page: Joi.string().required(),
+    // limit: Joi.string().required()
+  }),
+  params: Joi.object({
+
+  }),
 });
 const likePostSchema = Joi.object({
   body: Joi.object({

@@ -33,6 +33,7 @@
     "nodemailer": "^6.9.9",
     "nodemon": "^3.0.3",
     "openai": "^4.85.2",
+    "pusher": "^5.2.0",
     "redis": "^4.7.0",
     "unique-username-generator": "^1.2.0",
     "winston": "^3.11.0"

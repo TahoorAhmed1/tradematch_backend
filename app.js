@@ -12,7 +12,7 @@ app.use(compression());
 
 app.use(
   cors({
-    origin: ["https://tradematch-frontend.vercel.app","http://localhost:3000"],
+    origin: ["https://tradematch-frontend.vercel.app", "http://localhost:3000", "http://localhost:3001"],
     credentials: true,
   })
 );

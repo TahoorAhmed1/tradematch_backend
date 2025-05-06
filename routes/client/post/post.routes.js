@@ -38,7 +38,6 @@ router.delete("/:post_id", verifyUserByToken, deletePost);
 router.get(
   "/public",
   verifyUserByToken,
-  validateRequest(getPostSchema),
   getAllVisiblePublicPost
 );
 

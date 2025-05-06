@@ -63,12 +63,16 @@ model user {
   connections_received connection[]          @relation("connection_receiver")
   messages             message[]             @relation("sent_messages")
   conversation_member  conversation_member[]
+  notification         notification[]
 
-  is_deleted    Boolean  @default(false)
-  is_super_user Boolean  @default(false)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
-  story         story[]
+  is_online       Boolean? @default(false)
+  is_deleted      Boolean  @default(false)
+  is_super_user   Boolean  @default(false)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  story           story[]
+  blocks_sender   block[]  @relation("Blocker")
+  blocks_received block[]  @relation("Blocked")
 }
 
 enum user_type {
@@ -102,8 +106,25 @@ model profile {
 
   industry_subcategories industry_subcategory[] @relation("ProfileSubcategories")
 
-  is_deleted Boolean  @default(false)
+  is_deleted Boolean @default(false)
+
+  created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+}
+
+model block {
+  id            String   @id @default(uuid())
+  connection_id String
+  blocker_id    String
+  blocked_id    String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  connection connection @relation(fields: [connection_id], references: [id], onDelete: Cascade)
+  blocker    user       @relation("Blocker", fields: [blocker_id], references: [id], onDelete: Cascade)
+  blocked    user       @relation("Blocked", fields: [blocked_id], references: [id], onDelete: Cascade)
+
+  @@unique([blocker_id, blocked_id])
 }
 
 model connection {
@@ -120,8 +141,33 @@ model connection {
   is_deleted Boolean           @default(false)
   created_at DateTime          @default(now())
   updated_at DateTime          @updatedAt
+  block      block[]
 
   @@unique([sender_id, receiver_id])
+}
+
+model notification {
+  id         String            @id @default(uuid())
+  user       user              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    String
+  avatar     String?
+  type       notification_type
+  message    String            @db.Text
+  is_read    Boolean           @default(false)
+  metadata   Json?
+  created_at DateTime          @default(now())
+}
+
+enum notification_type {
+  LIKE
+  COMMENT
+  SHARE
+  MESSAGE
+  CONNECTION_REQUEST
+  CONNECTION_ACCEPTED
+  GROUP_INVITE
+  GROUP_ROLE_CHANGED
+  ADMIN_ANNOUNCEMENT
 }
 
 enum connection_status {
@@ -163,7 +209,7 @@ model story {
   userId    String
   mediaUrl  String
   type      String?
-  caption    String?
+  caption   String?
   createdAt DateTime @default(now())
   expiresAt DateTime
 }
@@ -214,7 +260,7 @@ model file {
 
 enum file_type {
   IMAGE
-  PDF
+  PDF 
   TEXT
   SPREADSHEET
   VIDEO
@@ -337,12 +383,19 @@ model group_member {
   user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   user_id String
 
-  role group_role @default(MEMBER)
+  role   group_role           @default(MEMBER)
+  status group_member_status? @default(PENDING)
 
   joined_at  DateTime @default(now())
   is_deleted Boolean  @default(false)
 
   @@unique([group_id, user_id])
+}
+
+enum group_member_status {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 enum group_role {

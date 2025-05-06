@@ -1,4 +1,3 @@
-const { regionEnum } = require("../../enums");
 const Joi = require("joi");
 
 const updateProfileSchema = Joi.object({
@@ -22,5 +21,25 @@ const updateProfileSchema = Joi.object({
   query: Joi.object({}),
   params: Joi.object({}),
 });
+const searchProfileSchema = Joi.object({
+  body: Joi.object({
 
-module.exports = { updateProfileSchema };
+  }),
+  query: Joi.object({
+    query: Joi.string().optional().allow(null, ""),
+  }),
+  params: Joi.object({}),
+});
+
+const profileByIdSchema = Joi.object({
+  params: Joi.object({
+    id: Joi.string()
+  }),
+  body: Joi.object({
+
+  }),
+  query: Joi.object({
+  }),
+});
+
+module.exports = { updateProfileSchema, searchProfileSchema, profileByIdSchema };

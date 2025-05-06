@@ -1,3 +1,4 @@
+const { pusher } = require("../../../configs/pusher");
 const { prisma } = require("../../../configs/prisma");
 const {
   createSuccessResponse,
@@ -8,56 +9,60 @@ const {
 const {
   uploadImageFromBuffer,
   deleteCloudinaryImage,
+  uploadVideoFromBuffer,
 } = require("../../../middlewares/uploadPicture.middleware");
 
 const createPost = async (req, res, next) => {
   const { userId } = req.user;
-  const { content } = req.body;
+  const { content, group_id } = req.body;
 
   try {
-    let attachments = [];
+    let attachment = null;
+    const file = req?.files?.[0];
 
-    if (req?.files && req?.files?.length > 0) {
-      const uploads = await Promise.all(
-        req.files.map(async (file) => {
-          const url = await uploadImageFromBuffer(file);
-          return {
-            url,
-            type: file.mimetype.includes("image")
-              ? "IMAGE"
-              : file.mimetype.includes("pdf")
-              ? "PDF"
-              : file.mimetype.includes("text")
-              ? "TEXT"
-              : file.mimetype.includes("spreadsheet")
-              ? "SPREADSHEET"
-              : file.mimetype.includes("video")
-              ? "VIDEO"
-              : "TEXT",
-            filename: file.originalname,
-            mimeType: file.mimetype,
-            size: file.size,
-          };
-        })
-      );
+    if (file) {
+      let url;
 
-      attachments = await prisma.$transaction(
-        uploads.map((fileData) => prisma.file.create({ data: fileData }))
-      );
+      if (file.mimetype.startsWith("image/")) {
+        url = await uploadImageFromBuffer(file);
+      } else if (file.mimetype.startsWith("video/")) {
+        url = await uploadVideoFromBuffer(file);
+      } else {
+        return res.status(400).json(badRequestResponse("Unsupported file type."));
+      }
+
+      attachment = await prisma.file.create({
+        data: {
+          url,
+          type: file.mimetype.includes("video") ? "VIDEO" : "IMAGE",
+          filename: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+        },
+      });
     }
 
     const newPost = await prisma.post.create({
       data: {
         user_id: userId,
         content,
-        attachments: attachments.length
+        visibility: group_id ? "GROUP_ONLY" : "PUBLIC",
+        attachments: attachment
           ? {
-              connect: attachments?.map((file) => ({ id: file.id })),
-            }
-          : {},
+            connect: { id: attachment.id },
+          }
+          : undefined,
+        group_posts: group_id
+          ? {
+            create: {
+              group_id,
+            },
+          }
+          : undefined,
       },
       include: {
         attachments: true,
+        group_posts: true,
       },
     });
 
@@ -70,6 +75,8 @@ const createPost = async (req, res, next) => {
     next(error);
   }
 };
+
+
 
 const updatePost = async (req, res, next) => {
   const { userId } = req.user;
@@ -168,6 +175,7 @@ const getAllVisiblePublicPost = async (req, res, next) => {
         },
       },
     });
+    
 
     const buildNestedComments = (flatComments) => {
       const commentMap = new Map();
@@ -209,49 +217,74 @@ const likePost = async (req, res, next) => {
   try {
     const post = await prisma.post.findUnique({
       where: { id: post_id },
+      select: { id: true, user_id: true, is_deleted: true },
     });
 
     if (!post || post.is_deleted) {
       return res.status(404).json(badRequestResponse("Post not found."));
     }
 
-    const existing = await prisma.like.findUnique({
+    const existingLike = await prisma.like.findUnique({
       where: {
-        user_id_post_id: {
-          user_id: userId,
-          post_id,
-        },
+        user_id_post_id: { user_id: userId, post_id },
       },
     });
 
-    if (existing) {
-      const like = await prisma.like.delete({
-        where: {
-          user_id_post_id: {
-            user_id: userId,
-            post_id,
-          },
-        },
-      });
-      return res
-        .status(200)
-        .json(createSuccessResponse(like, "Post unlike successfully."));
-    }
+    let responseData;
 
-    const like = await prisma.like.create({
-      data: {
-        user_id: userId,
-        post_id,
-      },
+    await prisma.$transaction(async (prisma) => {
+      if (existingLike) {
+        const deletedLike = await prisma.like.delete({
+          where: { user_id_post_id: { user_id: userId, post_id } },
+        });
+        responseData = {
+          data: deletedLike,
+          message: "Post unliked successfully.",
+        };
+      } else {
+        const newLike = await prisma.like.create({
+          data: { user_id: userId, post_id },
+        });
+
+        responseData = {
+          data: newLike,
+          message: "Post liked successfully.",
+        };
+
+        if (userId !== post.user_id) {
+          const profile = await prisma.profile.findUnique({
+            where: { user_id: userId },
+            select: { profile_picture_url: true },
+          })
+
+          const notification = await prisma.notification.create({
+            data: {
+              user_id: post.user_id,
+              avatar: profile?.profile_picture_url,
+              type: "LIKE",
+              message: "Someone liked your post!",
+              metadata: { postId: post.id, likerId: userId },
+            },
+          })
+
+          await pusher.trigger(`user-${post.user_id}`, "notification", {
+            id: notification.id,
+            avatar: profile?.profile_picture_url,
+            message: notification.message,
+            type: notification.type,
+            metadata: notification.metadata,
+            created_at: notification.created_at,
+          });
+        }
+      }
     });
 
-    return res
-      .status(200)
-      .json(createSuccessResponse(like, "Post liked successfully."));
+    return res.status(200).json(createSuccessResponse(responseData.data, responseData.message));
   } catch (error) {
     next(error);
   }
 };
+
 
 module.exports = {
   deletePost,

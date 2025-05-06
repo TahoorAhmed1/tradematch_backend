@@ -1,3 +1,4 @@
+const { pusher } = require("../../configs/pusher");
 const { createAndSendEmail } = require("../../configs/email");
 const { prisma } = require("../../configs/prisma");
 const redis = require("../../configs/redis");
@@ -76,6 +77,18 @@ const register = async (req, res, next) => {
   }
 };
 
+const setOnlineStatus = async (userId, status) => {
+  pusher.trigger(`user-${userId}`, "user:status", {
+    status,
+    userId
+  }),
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { is_online: status }
+    })
+};
+
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -85,6 +98,7 @@ const login = async (req, res, next) => {
       include: {
         profile: true,
         authentication: true,
+
       },
     });
 
@@ -136,6 +150,8 @@ const login = async (req, res, next) => {
       );
     }
 
+    await setOnlineStatus(user?.id, true);
+
     const token = createToken({ userId: user.id, role: user.type });
 
     return res
@@ -146,6 +162,18 @@ const login = async (req, res, next) => {
           `${user.type} logged in successfully.`
         )
       );
+  } catch (error) {
+    next(error);
+  }
+};
+
+const logout = async (req, res, next) => {
+  try {
+    const { userId } = req.user;
+
+    await setOnlineStatus(userId, false);
+
+    return res.status(200).json({ message: 'Logged out successfully.' });
   } catch (error) {
     next(error);
   }
@@ -373,7 +401,6 @@ const resendOtp = async (req, res, next) => {
         },
       },
     });
-    console.log("user", user);
 
     if (!user) {
       const response = badRequestResponse("User not found.");
@@ -386,7 +413,6 @@ const resendOtp = async (req, res, next) => {
     }
 
     const otp = generateOTP();
-    console.log("userId", userId);
     await prisma.authentication.update({
       where: {
         verification_id: user.id,
@@ -496,7 +522,25 @@ const getUserId = async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { profile: true },
+      include: {
+        profile: true, groups: {
+          where: {
+            status: "ACCEPTED"
+          },
+          orderBy: {
+            joined_at: "desc"
+          },
+          include: {
+            group: {
+
+              include: {
+
+                members: true
+              }
+            }
+          }
+        }
+      },
     });
 
     if (!user) {
@@ -523,4 +567,5 @@ module.exports = {
   forgotPassword,
   generateForgetLink,
   getUserId,
+  logout
 };

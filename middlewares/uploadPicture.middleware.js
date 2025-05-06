@@ -77,10 +77,8 @@ const uploadVideoFromBuffer = async (file) => {
   try {
     const result = await cloudinary.uploader.upload(dataURI, uploadOptions);
     
-    // Return the secure URL of the uploaded video
     return result.secure_url;
   } catch (error) {
-    console.error("Error uploading video to Cloudinary:", error);
     throw new Error(`Video upload failed: ${error.message}`);
   }
 };

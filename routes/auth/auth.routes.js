@@ -22,6 +22,7 @@ const {
   verifyOtp,
   getUserId,
   resendOtp,
+  logout,
 } = require("../../controllers/auth/auth.controllers");
 const verifyUserByToken = require("../../middlewares/verifyUserByToken");
 const verifyOTP = require("../../middlewares/verifyOtp");
@@ -58,6 +59,7 @@ router.post(
 router.post("/resend-otp", verifyOtpAuthToken, resendOtp);
 
 router.get("/", verifyUserByToken, getUserId);
+router.get("/logout", verifyUserByToken, logout);
 
 
 module.exports = router;

@@ -4,6 +4,7 @@ const {
   badRequestResponse,
   createSuccessResponse,
   updateSuccessResponse,
+  okResponse,
 } = require("../../../constants/responses");
 const {
   uploadImageFromBuffer,
@@ -39,9 +40,9 @@ const createProfile = async (req, res, next) => {
         user_id: userId,
         industry_subcategories: industry_subcategory_ids?.length
           ? {
-              set: [],
-              connect: industry_subcategory_ids.map((id) => ({ id })),
-            }
+            set: [],
+            connect: industry_subcategory_ids.map((id) => ({ id })),
+          }
           : {},
       },
     });
@@ -92,9 +93,9 @@ const updateProfile = async (req, res, next) => {
         ...data,
         industry_subcategories: industry_subcategory_ids.length
           ? {
-              set: [],
-              connect: industry_subcategory_ids.map((id) => ({ id })),
-            }
+            set: [],
+            connect: industry_subcategory_ids.map((id) => ({ id })),
+          }
           : undefined,
       },
       include: {
@@ -120,6 +121,18 @@ const getAllProfile = async (req, res, next) => {
   const userId = req.user.userId;
 
   try {
+    const pendingRequests = await prisma.connection.findMany({
+      where: {
+        sender_id: userId,
+        status: "PENDING",
+      },
+      select: {
+        receiver_id: true,
+      },
+    });
+
+    const pendingReceiverIds = pendingRequests.map((r) => r.receiver_id);
+
     const profiles = await prisma.profile.findMany({
       where: {
         user_id: {
@@ -153,18 +166,238 @@ const getAllProfile = async (req, res, next) => {
     const enrichedProfiles = profiles.map((profile) => {
       const sent = profile.user.connections_sent?.length || 0;
       const received = profile.user.connections_received?.length || 0;
+      const request = pendingReceiverIds.includes(profile.user_id);
 
       return {
         ...profile,
         connectionCount: sent + received,
+        request,
       };
     });
-
-    const response = createSuccessResponse(enrichedProfiles);
+    const response = okResponse(enrichedProfiles);
     return res.status(response.status.code).json(response);
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { createProfile, updateProfile, getAllProfile };
+const searchProfiles = async (req, res, next) => {
+  const userId = req.user.userId;
+  const { query } = req.query;
+
+  try {
+    const profiles = await prisma.profile.findMany({
+      where: {
+        user_id: {
+          not: userId,
+        },
+        OR: [
+          { first_name: { contains: query, mode: "insensitive" } },
+          { last_name: { contains: query, mode: "insensitive" } },
+        ],
+      },
+      include: {
+        user: {
+          include: {
+            connections_sent: {
+              where: {
+                status: "ACCEPTED",
+              },
+              select: { id: true },
+            },
+            connections_received: {
+              where: {
+                status: "ACCEPTED",
+              },
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    const enrichedProfiles = profiles.map((profile) => {
+      const sent = profile.user.connections_sent?.length || 0;
+      const received = profile.user.connections_received?.length || 0;
+
+      return {
+        ...profile,
+        connectionCount: sent + received,
+      };
+    });
+    const response = okResponse(enrichedProfiles);
+    return res.status(response.status.code).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProfilesById = async (req, res, next) => {
+  const { id } = req.params;
+  const userId = req.user.userId;
+
+  try {
+    const profile = await prisma.profile.findUnique({
+      where: {
+        id: id,
+      },
+      include: {
+        user: {
+          include: {
+            posts: {
+              where: {
+                visibility: "PUBLIC",
+                is_deleted: false,
+              },
+              orderBy: {
+                created_at: "desc",
+              },
+              include: {
+                attachments: true,
+                user: {
+                  include: {
+                    profile: true,
+                  },
+                },
+                likes: true,
+                comments: {
+                  where: { is_deleted: false },
+                  include: {
+                    user: {
+                      include: { profile: true },
+                    },
+                  },
+                },
+              },
+            },
+            connections_sent: {
+              select: {
+                receiver_id: true,
+              },
+            },
+            connections_received: {
+              select: {
+                sender_id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    const hasConnection = profile.user.connections_sent.some(
+      (connection) => connection.receiver_id === userId
+    ) || profile.user.connections_received.some(
+      (connection) => connection.sender_id === userId
+    );
+
+    const buildNestedComments = (flatComments) => {
+      const commentMap = new Map();
+      const roots = [];
+
+      flatComments.forEach((comment) => {
+        comment.replies = [];
+        commentMap.set(comment.id, comment);
+      });
+
+      flatComments.forEach((comment) => {
+        if (comment.parent_id) {
+          const parent = commentMap.get(comment.parent_id);
+          if (parent) parent.replies.push(comment);
+        } else {
+          roots.push(comment);
+        }
+      });
+
+      return roots;
+    };
+
+    // Apply nested comment formatting to each post
+    const posts = profile.user.posts?.map((post) => ({
+      ...post,
+      comments: buildNestedComments(post.comments),
+    })) || [];
+
+    const response = okResponse({
+      ...profile,
+      user: {
+        ...profile.user,
+        posts,
+        connectionStatus: hasConnection, // Boolean to indicate if there's any connection
+      },
+    });
+
+    return res.status(response.status.code).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const searchGroupAndProfiles = async (req, res, next) => {
+  const userId = req.user.userId;
+  const { query } = req.query;
+
+  try {
+
+
+
+    const user = await prisma.profile.findMany({
+      where: {
+        user_id: {
+          not: userId,
+        },
+
+        OR: [
+          { first_name: { contains: query, mode: "insensitive" } },
+          { last_name: { contains: query, mode: "insensitive" } },
+        ],
+
+
+      },
+    });
+
+
+    const groups = await prisma.group.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+        ],
+
+      },
+      orderBy: {
+        created_at: "desc"
+      },
+      include: {
+        members: {
+          where: {
+            role: "ADMIN"
+          },
+          select: {
+            user: {
+              select: {
+                profile: true
+              }
+            }
+          }
+        }
+      }
+
+    });
+
+
+    console.log('groups', groups)
+    const response = okResponse({ user, groups });
+    return res.status(response.status.code).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+module.exports = { createProfile, updateProfile, getAllProfile, searchProfiles, searchGroupAndProfiles, getProfilesById };

@@ -6,7 +6,6 @@ const {
 
 const verifyUserByToken = (req, res, next) => {
   const { authorization: token } = req.headers;
-
   if (!token) {
     const response = badRequestResponse("Token not provided.");
     return res.status(response.status.code).json(response);

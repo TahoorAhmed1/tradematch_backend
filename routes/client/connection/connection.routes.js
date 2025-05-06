@@ -7,6 +7,9 @@ const {
   sendConnection,
   getAllPendingConnection,
   getAllConfirmConnection,
+  getAllSendConnection,
+  getAllBlockConnection,
+  rejectConnection,
 } = require("../../../controllers/client/connection/connection.controller");
 const {
   createConnectionSchema,
@@ -28,12 +31,30 @@ router.get(
   validateRequest(getConnectionSchema),
   getAllPendingConnection
 );
+router.get(
+  "/sended-pending",
+  verifyUserByToken,
+  validateRequest(getConnectionSchema),
+  getAllSendConnection
+);
+router.get(
+  "/block",
+  verifyUserByToken,
+  validateRequest(getConnectionSchema),
+  getAllBlockConnection
+);
 
 router.patch(
   "/:connection_id/accept",
   verifyUserByToken,
   validateRequest(acceptConnectionSchema),
   acceptConnection
+);
+router.patch(
+  "/:connection_id/reject",
+  verifyUserByToken,
+  validateRequest(acceptConnectionSchema),
+  rejectConnection
 );
 router.get(
   "/accept-connection",

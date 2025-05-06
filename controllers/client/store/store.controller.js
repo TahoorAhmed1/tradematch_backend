@@ -20,9 +20,8 @@ const createStory = async (req, res, next) => {
     if (file.mimetype.startsWith("image/")) {
       url = await uploadImageFromBuffer(file);
     } else if (file.mimetype.startsWith("video/")) {
-      console.log('file', file)
       url = await uploadVideoFromBuffer(file);
-    } 
+    }
     const story = await prisma.story.create({
       data: {
         userId,
@@ -58,8 +57,7 @@ const getActiveStories = async (req, res, next) => {
     const storyGroups = stories.reduce((groups, story) => {
       const userId = story.user.id;
       const userName = story.user.profile
-        ? `${story.user.profile.first_name || ""} ${
-            story.user.profile.last_name || ""
+        ? `${story.user.profile.first_name || ""} ${story.user.profile.last_name || ""
           }`.trim()
         : "User";
       const userAvatar = story.user.profile?.profile_picture_url || "";
@@ -76,7 +74,6 @@ const getActiveStories = async (req, res, next) => {
       groups[userId].stories.push(story);
       return groups;
     }, {});
-console.log('Object.values(storyGroups)', Object.values(storyGroups))
     return res.status(200).json(okResponse(Object.values(storyGroups)));
   } catch (error) {
     next(error);

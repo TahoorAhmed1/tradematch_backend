@@ -1,7 +1,7 @@
 const nodemailer = require("nodemailer");
 
 const verifyEmail = async (email) => {
-  const apiKey = '73118493-c24e-4b63-964c-0c2f3868b3d6';  
+  const apiKey = '73118493-c24e-4b63-964c-0c2f3868b3d6';
 
   try {
     const response = await fetch(`https://api.mails.so/v1/validate?email=${email}`, {
@@ -24,14 +24,13 @@ const verifyEmail = async (email) => {
     }
 
   } catch (error) {
-    console.log('Error verifying email:', error.message);
     return false;
   }
 };
 
 const createAndSendEmail = async (opts) => {
   try {
-   
+
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_SERVER_HOST,
       port: process.env.EMAIL_SERVER_PORT,
@@ -44,7 +43,6 @@ const createAndSendEmail = async (opts) => {
 
     await transporter.verify((error) => {
       if (error) {
-        console.log(error, "SMTP verification failed");
         throw new Error("SMTP server verification failed");
       }
     });
@@ -68,4 +66,4 @@ const createAndSendEmail = async (opts) => {
   }
 };
 
-module.exports = { createAndSendEmail,verifyEmail };
+module.exports = { createAndSendEmail, verifyEmail };
