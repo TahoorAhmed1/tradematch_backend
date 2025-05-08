@@ -5,6 +5,7 @@ const {
   okResponse,
   updateSuccessResponse,
   deleteSuccessResponse,
+  badRequestResponse,
 } = require("../../../constants/responses");
 const {
   uploadImageFromBuffer,

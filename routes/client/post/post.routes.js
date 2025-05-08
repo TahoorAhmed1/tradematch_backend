@@ -5,7 +5,6 @@ const handleMultipartData = require("../../../middlewares/populateMultipartData.
 const {
   createPost,
   likePost,
-  unlikePost,
   getAllVisiblePublicPost,
   updatePost,
   deletePost,
@@ -13,7 +12,6 @@ const {
 const {
   createPostSchema,
   likePostSchema,
-  getPostSchema,
   updatePostSchema,
 } = require("../../../validations/post");
 const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
