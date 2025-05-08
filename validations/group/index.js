@@ -24,7 +24,6 @@ const updateGroupSchema = Joi.object({
   query: Joi.object({}),
   params: Joi.object({
     group_id: Joi.string().uuid().required(),
-
   }),
 
 });
@@ -40,7 +39,31 @@ const getByIdSchema = Joi.object({
 });
 
 
+const updateRequestStatusSchema = Joi.object({
+  body: Joi.object({
+    status: Joi.string().valid('ACCEPTED', 'REJECTED').required(),
+    groupId: Joi.string().uuid().required(),
+    userId: Joi.string().uuid().required(),
+  }),
+  params: Joi.object({}),
+  query: Joi.object({}),
+});
+
+
+const sharePostToGroupSchema = Joi.object({
+  body: Joi.object({
+    post_id: Joi.string().uuid().required(),
+    group_id: Joi.string().uuid().required(),
+    content: Joi.string().optional(),
+  }),
+  query: Joi.object({}),
+  params: Joi.object({
+
+  }),
+});
 
 
 
-module.exports = { createGroupSchema, updateGroupSchema, getByIdSchema };
+
+
+module.exports = { createGroupSchema, updateGroupSchema, getByIdSchema, sharePostToGroupSchema, updateRequestStatusSchema };

@@ -6,6 +6,7 @@ const {
     createSuccessResponse,
     okResponse,
 } = require("../../../constants/responses");
+const { uploadVideoFromBuffer, uploadImageFromBuffer, uploadDocumentFromBuffer } = require("../../../middlewares/uploadPicture.middleware");
 
 async function ensureCanChat1to1(userA, userB) {
     const conn = await prisma.connection.findFirst({
@@ -81,7 +82,10 @@ const create1to1 = async (req, res, next) => {
 const createGroup = async (req, res, next) => {
     const userId = req.user.userId;
     const { name, memberIds } = req.body;
+
     try {
+
+
         const conv = await prisma.conversation.create({
             data: {
                 name,
@@ -93,15 +97,15 @@ const createGroup = async (req, res, next) => {
                     ],
                 },
             },
-            include: {
-                members: { include: { user: { include: { profile: true } } } },
-            },
+
         });
+
         res.json(okResponse(conv));
     } catch (err) {
         next(err);
     }
 };
+
 
 const listConversations = async (req, res, next) => {
     const userId = req.user.userId;
@@ -120,21 +124,23 @@ const listConversations = async (req, res, next) => {
 
         const data = memberships.map((m) => {
             const c = m.conversation;
+            console.log('c', c)
             let participant;
             if (!c.is_group) {
                 const other = c.members.find((x) => x.user_id !== userId).user;
                 participant = {
                     id: other.id,
-                    name: `${other.profile.first_name} ${other.profile.last_name}`,
+                    name: `${other?.profile?.first_name} ${other.profile.last_name}`,
                     avatar: other.profile.profile_picture_url,
                     is_online: other.is_online,
                 };
             } else {
+                const other = c.members.find((x) => x.role == "ADMIN").user;
                 participant = {
-                    id: c.id,
-                    name: c.name,
-                    avatar: null,
-                    is_online: false
+                    id: c?.id,
+                    name: `${c?.name}`,
+                    avatar: other?.profile?.profile_picture_url,
+                    is_online: other?.is_online,
                 };
             }
             return {
@@ -162,7 +168,6 @@ const getMessages = async (req, res, next) => {
             return res.status(403).json(badRequestResponse("Not in this conversation."));
         }
 
-        // For 1:1, re-run ensureCanChat1to1; for group, skip it
         const conv = await prisma.conversation.findUnique({
             where: { id: conversationId },
             include: { members: true },
@@ -190,15 +195,13 @@ const getMessages = async (req, res, next) => {
 
 const sendMessage = async (req, res, next) => {
     const userId = req.user.userId;
-    const { conversationId } = req.params
+    const { conversationId } = req.params;
     const { content } = req.body;
 
+    let attachment = null;
+    const file = req?.files?.[0];
 
-    if (!content.trim()) {
-        return res.status(400).json(badRequestResponse("Message cannot be empty."));
-    }
     try {
-        // ensure membership
         const member = await prisma.conversation_member.findFirst({
             where: { conversation_id: conversationId, user_id: userId },
         });
@@ -206,7 +209,6 @@ const sendMessage = async (req, res, next) => {
             return res.status(403).json(badRequestResponse("Not in this conversation."));
         }
 
-        // if 1:1, validate connection
         const conv = await prisma.conversation.findUnique({
             where: { id: conversationId },
             include: { members: true },
@@ -216,10 +218,49 @@ const sendMessage = async (req, res, next) => {
             await ensureCanChat1to1(userId, otherId);
         }
 
-        // create and broadcast
+        if (file) {
+            let url;
+            let fileType = "";
+
+            if (file.mimetype.startsWith("image/")) {
+                url = await uploadImageFromBuffer(file);
+                fileType = "IMAGE";
+            } else if (file.mimetype.startsWith("video/")) {
+                url = await uploadVideoFromBuffer(file);
+                fileType = "VIDEO";
+            } else if (file.mimetype === "application/pdf") {
+                url = await uploadDocumentFromBuffer(file);
+                fileType = "PDF";
+            } else if (["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv"].includes(file.mimetype)) {
+                url = await uploadDocumentFromBuffer(file);
+                fileType = "SPREADSHEET";
+            } else {
+                return res.status(400).json(badRequestResponse("Unsupported file type."));
+            }
+
+            attachment = await prisma.file.create({
+                data: {
+                    url,
+                    type: fileType,
+                    filename: file.originalname,
+                    mimeType: file.mimetype,
+                    size: file.size,
+                },
+            });
+        }
+
         const message = await prisma.message.create({
-            data: { conversation_id: conversationId, sender_id: userId, content },
-            include: { sender: { include: { profile: true } } },
+            data: {
+                conversation_id: conversationId,
+                sender_id: userId,
+                content,
+                attachments: attachment
+                    ? {
+                        connect: { id: attachment.id },
+                    }
+                    : undefined,
+            },
+            include: { sender: { include: { profile: true } }, attachments: true },
         });
 
         await pusher.trigger(`conversation-${conversationId}`, "message:new", message);
@@ -228,6 +269,7 @@ const sendMessage = async (req, res, next) => {
         next(err);
     }
 };
+
 
 const updateGroup = async (req, res, next) => {
     const userId = req.user.userId;
@@ -303,4 +345,4 @@ module.exports = {
     sendMessage,
     updateGroup,
     typingNotification
-};
+}

@@ -98,7 +98,21 @@ const login = async (req, res, next) => {
       include: {
         profile: true,
         authentication: true,
-
+        groups: {
+          where: {
+            status: "ACCEPTED"
+          },
+          orderBy: {
+            joined_at: "desc"
+          },
+          include: {
+            group: {
+              include: {
+                members: true
+              }
+            }
+          }
+        }
       },
     });
 
@@ -523,7 +537,9 @@ const getUserId = async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        profile: true, groups: {
+        profile: true,
+
+        groups: {
           where: {
             status: "ACCEPTED"
           },

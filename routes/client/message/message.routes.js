@@ -5,6 +5,7 @@ const verifyUserByToken = require("../../../middlewares/verifyUserByToken");
 const validateRequest = require("../../../middlewares/validateRequestJoi.middleware");
 const { getMessages, sendMessage, updateGroup, listConversations, create1to1, createGroup, typingNotification } = require("../../../controllers/client/message/message.controller");
 const { getMessagesSchema, sendMessageSchema, updateGroupSchema, create1to1Schema, createGroupSchema } = require("../../../validations/message");
+const handleMultipartData = require("../../../middlewares/populateMultipartData.middleware");
 
 router.post(
   "/conversation",
@@ -32,6 +33,7 @@ router.get(
 router.post(
   "/conversation/:conversationId/messages",
   verifyUserByToken,
+  handleMultipartData,
   validateRequest(sendMessageSchema),
   sendMessage
 );

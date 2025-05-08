@@ -76,8 +76,6 @@ const createPost = async (req, res, next) => {
   }
 };
 
-
-
 const updatePost = async (req, res, next) => {
   const { userId } = req.user;
   const { post_id } = req.params;
@@ -173,9 +171,14 @@ const getAllVisiblePublicPost = async (req, res, next) => {
             },
           },
         },
+        shares: {
+          select: {
+            id: true
+          }
+        }
       },
     });
-    
+
 
     const buildNestedComments = (flatComments) => {
       const commentMap = new Map();

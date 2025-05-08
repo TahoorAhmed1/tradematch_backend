@@ -40,7 +40,7 @@ const createComment = async (req, res, next) => {
         data: {
           user_id: comment.post.user_id,
           avatar: comment?.user?.profile?.profile_picture_url,
-          type: "",
+          type: "COMMENT",
           message: `${comment?.user?.profile?.first_name} ${comment?.user?.profile?.last_name} commented on your post.`,
           metadata: {
             postId: post_id,

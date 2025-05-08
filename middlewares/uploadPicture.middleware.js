@@ -47,41 +47,57 @@ const uploadVideoFromBuffer = async (file) => {
   const dataURI = `data:${file.mimetype};base64,${b64}`;
 
   const uniqueId = `${file.originalname.split(".")[0]}-${Date.now()}`;
-  
+
   const uploadOptions = {
     resource_type: "video",
     folder: `assets/videos`,
     public_id: uniqueId,
-    quality: "auto",           // Auto-optimize video quality
-    fetch_format: "auto",      // Let Cloudinary determine the best delivery format
-    chunk_size: 6000000,       // 6MB chunks for better upload reliability
+    quality: "auto",
+    fetch_format: "auto",
+    chunk_size: 6000000,
     eager: [
-      // Create optimized versions for different use cases
-      { 
-        format: 'mp4',         // Standard format for broad compatibility
-        video_codec: 'auto',   // Let Cloudinary choose the best codec
-        bit_rate: 'auto',      // Auto bitrate based on content
+
+      {
+        format: 'mp4',
+        video_codec: 'auto',
+        bit_rate: 'auto',
         transformation: [
-          { width: 720, crop: "scale" } // 720p version
+          { width: 720, crop: "scale" }
         ]
       }
     ],
-    eager_async: true,        
+    eager_async: true,
     eager_notification_url: process.env.CLOUDINARY_NOTIFICATION_URL || null,
-    context: {
-      alt: file.originalname,
-      caption: "User uploaded video"
-    }
+
   };
 
   try {
     const result = await cloudinary.uploader.upload(dataURI, uploadOptions);
-    
+
     return result.secure_url;
   } catch (error) {
     throw new Error(`Video upload failed: ${error.message}`);
   }
 };
+
+const uploadDocumentFromBuffer = async (file) => {
+
+
+  const b64 = Buffer.from(file.buffer).toString("base64");
+  const dataURI = `data:${file.mimetype};base64,${b64}`;
+
+  const uniqueId = `${file.originalname.split(".")[0]}-${Date.now()}`;
+
+  const result = await cloudinary.uploader.upload(dataURI, {
+    resource_type: "raw",
+    folder: `assets/documents`,
+    public_id: uniqueId,
+
+  });
+
+  return result.secure_url;
+};
+
 
 const deleteCloudinaryImage = async (url) => {
   if (!url) return;
@@ -109,4 +125,4 @@ const deleteCloudinaryImage = async (url) => {
   }
 };
 
-module.exports = { uploadImage, uploadImageFromBuffer, deleteCloudinaryImage ,uploadVideoFromBuffer};
+module.exports = { uploadImage, uploadImageFromBuffer, deleteCloudinaryImage, uploadVideoFromBuffer, uploadDocumentFromBuffer };

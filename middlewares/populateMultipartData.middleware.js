@@ -25,41 +25,23 @@ function handleMultipartData(req, res, next) {
     limits,
     fileFilter: function (req, file, callback) {
       const ext = path.extname(file.originalname).toLowerCase();
+
       const allowed = [
         ".png",
         ".jpg",
-        ".jpeg",
         ".jfif",
         ".webp",
         ".svg",
         ".gif",
-        ".bmp",
-        ".tiff",
-        ".ico",
 
         ".pdf",
-        ".doc",
-        ".docx",
         ".xls",
         ".xlsx",
-        ".ppt",
-        ".pptx",
-        ".txt",
         ".csv",
-        ".rtf",
 
         ".mp3",
-        ".wav",
-        ".aac",
-        ".ogg",
-        ".m4a",
-
         ".mp4",
-        ".avi",
-        ".mov",
-        ".wmv",
         ".webm",
-        ".mkv",
 
         ".zip",
         ".rar",
@@ -69,6 +51,7 @@ function handleMultipartData(req, res, next) {
       if (!allowed.includes(ext)) {
         return callback(new Error("Unsupported file type."));
       }
+
       callback(null, true);
     },
   }).any();
@@ -82,6 +65,5 @@ function handleMultipartData(req, res, next) {
     next();
   });
 }
-
 
 module.exports = handleMultipartData;

@@ -28,7 +28,7 @@ const getMessagesSchema = Joi.object({
 const sendMessageSchema = Joi.object({
   body: Joi.object({
 
-    content: Joi.string().trim().min(1).required(),
+    content: Joi.string().trim().optional(),
   }),
   params: Joi.object({
     conversationId: Joi.string().uuid().required(),

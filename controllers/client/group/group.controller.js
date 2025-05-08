@@ -1,13 +1,16 @@
+const { pusher } = require("../../../configs/pusher");
 const { prisma } = require("../../../configs/prisma");
 const {
   createSuccessResponse,
   updateSuccessResponse,
+  badRequestResponse,
   okResponse,
 } = require("../../../constants/responses");
 const {
   deleteCloudinaryImage,
   uploadImageFromBuffer,
 } = require("../../../middlewares/uploadPicture.middleware");
+const { logger } = require("../../../configs/logger");
 
 const createGroup = async (req, res, next) => {
   const { userId } = req.user;
@@ -33,30 +36,31 @@ const createGroup = async (req, res, next) => {
           create: {
             user_id: userId,
             role: "ADMIN",
-            status: "ACCEPTED"
+            status: "ACCEPTED",
           },
         },
       },
     });
 
-    const response = createSuccessResponse(group, "Group created successfully.");
+    const response = createSuccessResponse(
+      group,
+      "Group created successfully."
+    );
     return res.status(response.status.code).json(response);
   } catch (error) {
     next(error);
   }
 };
-;
 
 const updateGroup = async (req, res, next) => {
-  const { groupId } = req.params;
+  const { group_id } = req.params;
   const { name, description, category, location, is_private } = req.body;
-
   try {
-    const group = await prisma.group.findUnique({ where: { id: groupId } });
+    const group = await prisma.group.findUnique({ where: { id: group_id } });
     if (!group)
       return res.status(404).json(badRequestResponse("Group not found."));
 
-    let data = { name, description, category, location, is_private };
+    let data = { name, description, category, location };
 
     const coverPic = req.files?.find((f) => f.fieldname === "cover_image_url");
     if (coverPic) {
@@ -66,8 +70,11 @@ const updateGroup = async (req, res, next) => {
     }
 
     const updated = await prisma.group.update({
-      where: { id: groupId },
-      data,
+      where: { id: group_id },
+      data: {
+        ...data,
+        is_private: JSON.parse(is_private)
+      },
     });
 
     return res
@@ -78,29 +85,28 @@ const updateGroup = async (req, res, next) => {
   }
 };
 
-
 const getGroup = async (req, res, next) => {
   const { id } = req.params;
-  const { userId } = req.user
+  const { userId } = req.user;
   try {
     const group = await prisma.group.findUnique({
       where: { id: id },
       include: {
         members: {
           where: {
-            status: "ACCEPTED"
-          }
+            status: "ACCEPTED",
+          },
         },
         posts: {
           include: {
-            post: true
-          }
+            post: true,
+          },
         },
         creator: {
           include: {
-            profile: true
-          }
-        }
+            profile: true,
+          },
+        },
       },
     });
 
@@ -113,14 +119,14 @@ const getGroup = async (req, res, next) => {
         group_id: id,
         user_id: userId,
         is_deleted: false,
-        status: "ACCEPTED"
+        status: "ACCEPTED",
       },
     });
 
     const response = {
       ...group,
       isJoined: !!isMember,
-      isAdmin: group.creator_id === userId
+      isAdmin: group.creator_id === userId,
     };
     return res.status(200).json(okResponse(response));
   } catch (error) {
@@ -128,8 +134,93 @@ const getGroup = async (req, res, next) => {
   }
 };
 
+const getAllJoinRequestsForAdmin = async (req, res, next) => {
+  const { userId } = req.user;
+
+  try {
+    const groups = await prisma.group.findMany({
+      where: {
+        creator_id: userId,
+        is_deleted: false,
+      },
+      select: { id: true },
+    });
+
+    const groupIds = groups.map((g) => g.id);
+
+    const requests = await prisma.group_member.findMany({
+      where: {
+        group_id: { in: groupIds },
+        status: "PENDING",
+        is_deleted: false,
+      },
+      include: {
+        user: {
+          include: { profile: true },
+        },
+        group: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json(okResponse(requests));
+  } catch (error) {
+    logger.info('error', error)
+    next(error);
+  }
+};
+
+const updateRequestStatus = async (req, res, next) => {
+  const { status, groupId, userId: targetUserId } = req.body;
+  const { userId: adminId } = req.user;
+
+  try {
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+    });
+
+    if (!group) {
+      return res.status(404).json({ message: "Group not found." });
+    }
+
+    if (group.creator_id !== adminId) {
+      return res.status(403).json({ message: "Unauthorized: Not the group creator." });
+    }
+
+    const updated = await prisma.group_member.updateMany({
+      where: {
+        group_id: groupId,
+        user_id: targetUserId,
+        status: "PENDING",
+        is_deleted: false,
+      },
+      data: {
+        status,
+        joined_at: new Date(),
+      },
+    });
+
+    if (updated.count === 0) {
+      return res.status(404).json({ message: "No pending request found for this user." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `User request ${status.toLowerCase()} successfully.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
 const getAllGroupPost = async (req, res, next) => {
-  const { id } = req.params
+  const { id } = req.params;
   try {
     const posts = await prisma.post.findMany({
       where: {
@@ -200,8 +291,131 @@ const getAllGroups = async (req, res, next) => {
   try {
     const groups = await prisma.group.findMany({
       orderBy: {
-        created_at: "desc"
-      }
+        created_at: "desc",
+      },
+    });
+
+    return res.status(200).json(okResponse(groups));
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+
+const permanentDeleteGroup = async (req, res, next) => {
+  const { userId } = req.user;
+  const { id } = req.params;
+
+  try {
+    const group = await prisma.group.findUnique({
+      where: { id },
+      include: {
+        members: {
+          where: {
+            user_id: userId,
+            role: { in: ["ADMIN"] },
+          },
+        },
+      },
+    });
+
+    if (!group) {
+      return res.status(404).json(badRequestResponse("Group not found."));
+    }
+
+    if (group.creator_id !== userId) {
+      return res.status(403).json(
+        badRequestResponse("Only the group creator can permanently delete this group.")
+      );
+    }
+
+    const groupMembers = await prisma.group_member.findMany({
+      where: {
+        group_id: id,
+        status: "ACCEPTED",
+        user_id: { not: userId },
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    const deletingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+      },
+    });
+
+    await prisma.group_post.deleteMany({
+      where: { group_id: id },
+    });
+
+    await prisma.group_member.deleteMany({
+      where: { group_id: id },
+    });
+
+    await prisma.share.deleteMany({
+      where: { group_id: id },
+    });
+
+    await prisma.group.delete({
+      where: { id },
+    });
+
+    for (const member of groupMembers) {
+      const notification = await prisma.notification.create({
+        data: {
+          user_id: member.user_id,
+          avatar: deletingUser?.profile?.profile_picture_url,
+          type: "ADMIN_ANNOUNCEMENT",
+          message: `The group "${group.name}" has been permanently deleted by ${deletingUser?.profile?.first_name} ${deletingUser?.profile?.last_name}.`,
+          metadata: {
+            groupId: id,
+          },
+        },
+      });
+
+      await pusher.trigger(`user-${member?.user_id}`, "notification", {
+        id: notification.id,
+        avatar: deletingUser?.profile?.profile_picture_url,
+        message: `The group "${group.name}" has been permanently deleted by ${deletingUser?.profile?.first_name} ${deletingUser?.profile?.last_name}.`,
+        type: "ADMIN_ANNOUNCEMENT",
+        metadata: {
+          groupId: id,
+        },
+        created_at: notification.created_at,
+      });
+    }
+
+    return res.status(200).json(
+      createSuccessResponse(
+        null,
+        "Group has been permanently deleted."
+      )
+    );
+
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+
+const getUserGroups = async (req, res, next) => {
+  const { userId } = req.user;
+  try {
+    const groups = await prisma.group.findMany({
+      where: {
+        creator: {
+          id: userId,
+        },
+      },
+      orderBy: {
+        created_at: "desc",
+      },
     });
 
     return res.status(200).json(okResponse(groups));
@@ -215,12 +429,40 @@ const joinGroup = async (req, res, next) => {
   const { id } = req.params;
 
   try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+        is_deleted: false,
+      },
+      include: {
+        profile: true,
+      },
+    });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json(badRequestResponse("User not found or deleted."));
+    }
+
     const group = await prisma.group.findUnique({
-      where: { id },
+      where: {
+        id,
+        is_deleted: false,
+      },
+      include: {
+        creator: {
+          include: {
+            profile: true,
+          },
+        },
+      },
     });
 
     if (!group) {
-      return res.status(404).json({ message: "Group not found" });
+      return res
+        .status(404)
+        .json(badRequestResponse("Group not found or deleted."));
     }
 
     const existingMember = await prisma.group_member.findUnique({
@@ -229,12 +471,18 @@ const joinGroup = async (req, res, next) => {
           group_id: id,
           user_id: userId,
         },
-
       },
     });
 
     if (existingMember) {
-      return res.status(400).json({ message: "Already a member of the group." });
+      if (existingMember.status === "PENDING") {
+        return res
+          .status(400)
+          .json(badRequestResponse("Your request is pending approval."));
+      }
+      return res
+        .status(400)
+        .json(badRequestResponse("You are already a member of this group."));
     }
 
     await prisma.group_member.create({
@@ -246,8 +494,45 @@ const joinGroup = async (req, res, next) => {
       },
     });
 
-    return res.status(200).json({ message: "Successfully joined the group." });
+    if (group.is_private) {
+      const notification = await prisma.notification.create({
+        data: {
+          user_id: group.creator_id,
+          avatar: user.profile?.profile_picture_url,
+          type: "GROUP_INVITE",
+          message: `${user.profile?.first_name} ${user.profile?.last_name} has requested to join your group "${group.name}".`,
+          metadata: {
+            groupId: id,
+            userId: userId,
+          },
+        },
+      });
+
+      await pusher.trigger(`user-${group.creator_id}`, "notification", {
+        id: notification.id,
+        avatar: user.profile?.profile_picture_url,
+        message: `${user.profile?.first_name} ${user.profile?.last_name} has requested to join your group "${group.name}".`,
+        type: "GROUP_INVITE",
+        metadata: {
+          groupId: id,
+          userId: userId,
+        },
+        created_at: notification.created_at,
+        is_read: false,
+      });
+    }
+
+    return res
+      .status(200)
+      .json(
+        createSuccessResponse(
+          group.is_private
+            ? "Your request to join the group has been sent."
+            : "Successfully joined the group."
+        )
+      );
   } catch (error) {
+    console.error(error);
     next(error);
   }
 };
@@ -273,7 +558,9 @@ const leaveGroup = async (req, res, next) => {
     });
 
     if (!membership) {
-      return res.status(400).json({ message: "You are not a member of this group." });
+      return res
+        .status(400)
+        .json({ message: "You are not a member of this group." });
     }
 
     await prisma.group_member.delete({
@@ -326,7 +613,9 @@ const createGroupPost = async (req, res, next) => {
         user_id: userId,
         content,
         visibility: "GROUP_ONLY",
-        attachments: attachment ? { connect: { id: attachment.id } } : undefined,
+        attachments: attachment
+          ? { connect: { id: attachment.id } }
+          : undefined,
         group_posts: {
           create: {
             group_id,
@@ -339,12 +628,13 @@ const createGroupPost = async (req, res, next) => {
       },
     });
 
-    return res.status(201).json(createSuccessResponse(post, "Group post created successfully."));
+    return res
+      .status(201)
+      .json(createSuccessResponse(post, "Group post created successfully."));
   } catch (error) {
     next(error);
   }
 };
-
 
 const sharePostToGroup = async (req, res, next) => {
   const { userId } = req.user;
@@ -353,32 +643,67 @@ const sharePostToGroup = async (req, res, next) => {
   try {
     const originalPost = await prisma.post.findUnique({
       where: { id: post_id },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+        group_posts: {
+          include: {
+            group: true,
+          },
+        },
+        attachments: true,
+      },
     });
 
     if (!originalPost) {
-      return res.status(404).json({ message: "Original post not found." });
+      return res
+        .status(404)
+        .json(badRequestResponse("Original post not found."));
+    }
+
+    const groupAssoc = originalPost.group_posts?.[0];
+    if (groupAssoc && groupAssoc.group?.is_private) {
+      return res
+        .status(403)
+        .json(badRequestResponse("Cannot share posts from private groups."));
     }
 
     const group = await prisma.group.findUnique({
-      where: { id: groupId },
+      where: { id: group_id },
     });
 
     if (!group || group.is_deleted) {
-      return res.status(404).json({ message: "Group not found or deleted." });
+      return res
+        .status(404)
+        .json(badRequestResponse("Group not found or deleted."));
     }
 
     const member = await prisma.group_member.findUnique({
       where: {
         group_id_user_id: {
-          group_id: group_id,
+          group_id,
           user_id: userId,
         },
       },
     });
 
     if (!member || member.status !== "ACCEPTED") {
-      return res.status(403).json({ message: "You are not an accepted member of this group." });
+      return res
+        .status(403)
+        .json(
+          badRequestResponse("You are not an accepted member of this group.")
+        );
     }
+
+    const sharingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+      },
+    });
 
     const sharedPost = await prisma.post.create({
       data: {
@@ -387,13 +712,14 @@ const sharePostToGroup = async (req, res, next) => {
         visibility: "GROUP_ONLY",
         attachments: {
           createMany: {
-            data: originalPost.attachments.map(file => ({
-              url: file.url,
-              type: file.type,
-              filename: file.filename,
-              size: file.size,
-              mimeType: file.mimeType,
-            })),
+            data:
+              originalPost.attachments?.map((file) => ({
+                url: file.url,
+                type: file.type,
+                filename: file.filename,
+                size: file.size,
+                mimeType: file.mimeType,
+              })) || [],
           },
         },
       },
@@ -404,37 +730,65 @@ const sharePostToGroup = async (req, res, next) => {
 
     await prisma.share.create({
       data: {
-        post_id: originalPost.id,
+        post_id: post_id,
         shared_by_id: userId,
-        group_id: groupId,
+        group_id: group_id,
         content: content || null,
       },
     });
 
     await prisma.group_post.create({
       data: {
-        group_id: group_id,
+        group_id,
         post_id: sharedPost.id,
       },
     });
+    if (originalPost.user_id !== userId) {
+      const notification = await prisma.notification.create({
+        data: {
+          user_id: originalPost.user_id,
+          avatar: sharingUser?.profile?.profile_picture_url,
+          type: "SHARE",
+          message: `${sharingUser?.profile?.first_name} ${sharingUser?.profile?.last_name} shared your post to ${group.name}.`,
+          metadata: {
+            postId: post_id,
+            sharedPostId: sharedPost.id,
+            groupId: group_id,
+          },
+        },
+      });
 
-    return res.status(201).json({
-      message: "Post shared successfully to the group.",
-      sharedPost,
-    });
+      await pusher.trigger(`user-${originalPost.user_id}`, "notification", {
+        id: notification.id,
+        avatar: sharingUser?.profile?.profile_picture_url,
+        message: `${sharingUser?.profile?.first_name} ${sharingUser?.profile?.last_name} shared your post to ${group.name}.`,
+        type: "SHARE",
+        metadata: {
+          postId: post_id,
+          sharedPostId: sharedPost.id,
+          groupId: group_id,
+        },
+        created_at: notification.created_at,
+      });
+    }
+
+    return res
+      .status(201)
+      .json(
+        createSuccessResponse(
+          "Post shared successfully to the group.",
+          sharedPost
+        )
+      );
   } catch (error) {
     console.error(error);
     next(error);
   }
 };
 
-
-
-
-
-
-
 module.exports = {
+  getUserGroups,
+  permanentDeleteGroup,
   createGroupPost,
   createGroup,
   leaveGroup,
@@ -443,5 +797,7 @@ module.exports = {
   getAllGroups,
   joinGroup,
   getAllGroupPost,
-  sharePostToGroup
+  sharePostToGroup,
+  getAllJoinRequestsForAdmin,
+  updateRequestStatus
 };
