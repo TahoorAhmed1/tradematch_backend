@@ -84,8 +84,7 @@ const createGroup = async (req, res, next) => {
     const { name, memberIds } = req.body;
 
     try {
-
-
+        // Create the conversation with members
         const conv = await prisma.conversation.create({
             data: {
                 name,
@@ -97,10 +96,44 @@ const createGroup = async (req, res, next) => {
                     ],
                 },
             },
-
         });
 
-        res.json(okResponse(conv));
+        // Fetch the newly created conversation with all the needed data
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conv.id },
+            include: {
+                members: {
+                    include: {
+                        user: {
+                            include: { profile: true }
+                        }
+                    }
+                },
+                messages: {
+                    orderBy: { created_at: "desc" },
+                    take: 1
+                },
+            },
+        });
+
+        // Get the admin user for group avatar
+        const adminMember = conversation.members.find(m => m.role === "ADMIN");
+        const adminUser = adminMember.user;
+
+        // Format the response to match listConversations format
+        const formattedResponse = {
+            conversationId: conversation.id,
+            isGroup: conversation.is_group,
+            participant: {
+                id: conversation.id,
+                name: conversation.name,
+                avatar: adminUser?.profile?.profile_picture_url,
+                is_online: adminUser?.is_online,
+            },
+            lastMessage: conversation.messages[0] || null,
+        };
+
+        res.json(okResponse(formattedResponse));
     } catch (err) {
         next(err);
     }
