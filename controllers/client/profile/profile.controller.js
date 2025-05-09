@@ -272,6 +272,7 @@ const getProfilesById = async (req, res, next) => {
             },
             connections_sent: {
               select: {
+
                 receiver_id: true,
               },
             },
@@ -289,11 +290,20 @@ const getProfilesById = async (req, res, next) => {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    const hasConnection = profile.user.connections_sent.some(
+    const hasSent = profile.user.connections_sent.some(
       (connection) => connection.receiver_id === userId
     ) || profile.user.connections_received.some(
       (connection) => connection.sender_id === userId
     );
+    
+    const hasConnection = profile.user.connections_sent.some(
+      (connection) =>
+        connection.receiver_id === userId && connection.status === "ACCEPTED"
+    ) || profile.user.connections_received.some(
+      (connection) =>
+        connection.sender_id === userId && connection.status === "ACCEPTED"
+    );
+
 
     const buildNestedComments = (flatComments) => {
       const commentMap = new Map();
@@ -327,7 +337,8 @@ const getProfilesById = async (req, res, next) => {
       user: {
         ...profile.user,
         posts,
-        connectionStatus: hasConnection, // Boolean to indicate if there's any connection
+        connectionStatus: hasConnection,
+        hasSent: hasSent
       },
     });
 
