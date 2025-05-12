@@ -291,10 +291,14 @@ const getProfilesById = async (req, res, next) => {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    const hasSent = profile.user.connections_sent.some(
-      (connection) => connection.receiver_id === userId
-    ) || profile.user.connections_received.some(
-      (connection) => connection.sender_id === userId
+    const hasSent = profile.user.connections_received.some(
+      (connection) =>
+        connection.sender_id === userId && connection.status === "PENDING"
+    );
+
+    const hasReceived = profile.user.connections_sent.some(
+      (connection) =>
+        connection.receiver_id === userId && connection.status === "PENDING"
     );
 
     const hasConnection = profile.user.connections_sent.some(
@@ -304,7 +308,7 @@ const getProfilesById = async (req, res, next) => {
       (connection) =>
         connection.sender_id === userId && connection.status === "ACCEPTED"
     );
-    console.log('profile.user.connections_sent', profile.user.connections_sent)
+
 
 
     const buildNestedComments = (flatComments) => {
@@ -340,7 +344,8 @@ const getProfilesById = async (req, res, next) => {
         ...profile.user,
         posts,
         connectionStatus: hasConnection,
-        hasSent: hasSent
+        hasSent,
+        hasReceived,
       },
     });
 
