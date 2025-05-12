@@ -291,25 +291,30 @@ const getProfilesById = async (req, res, next) => {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    const hasSent = profile.user.connections_received.some(
-      (connection) =>
-        connection.sender_id === userId && connection.status === "PENDING"
-    );
+    // 🔄 Find direct connection (regardless of direction)
+    const connection = await prisma.connection.findFirst({
+      where: {
+        OR: [
+          { sender_id: userId, receiver_id: profile.user.id },
+          { sender_id: profile.user.id, receiver_id: userId },
+        ],
+        is_deleted: false,
+      },
+      select: {
+        id: true,
+        sender_id: true,
+        receiver_id: true,
+        status: true,
+        created_at: true,
+      },
+    });
 
-    const hasReceived = profile.user.connections_sent.some(
-      (connection) =>
-        connection.receiver_id === userId && connection.status === "PENDING"
-    );
-
-    const hasConnection = profile.user.connections_sent.some(
-      (connection) =>
-        connection.receiver_id === userId && connection.status === "ACCEPTED"
-    ) || profile.user.connections_received.some(
-      (connection) =>
-        connection.sender_id === userId && connection.status === "ACCEPTED"
-    );
-
-
+    // 🔍 Determine connection direction and status
+    const hasSent =
+      connection?.sender_id === userId && connection?.status === "PENDING";
+    const hasReceived =
+      connection?.receiver_id === userId && connection?.status === "PENDING";
+    const hasConnection = connection?.status === "ACCEPTED";
 
     const buildNestedComments = (flatComments) => {
       const commentMap = new Map();
@@ -332,11 +337,11 @@ const getProfilesById = async (req, res, next) => {
       return roots;
     };
 
-    // Apply nested comment formatting to each post
-    const posts = profile.user.posts?.map((post) => ({
-      ...post,
-      comments: buildNestedComments(post.comments),
-    })) || [];
+    const posts =
+      profile.user.posts?.map((post) => ({
+        ...post,
+        comments: buildNestedComments(post.comments),
+      })) || [];
 
     const response = okResponse({
       ...profile,
@@ -346,6 +351,7 @@ const getProfilesById = async (req, res, next) => {
         connectionStatus: hasConnection,
         hasSent,
         hasReceived,
+        connectionId: connection?.id || null,
       },
     });
 
@@ -354,6 +360,7 @@ const getProfilesById = async (req, res, next) => {
     next(error);
   }
 };
+
 
 const searchGroupAndProfiles = async (req, res, next) => {
   const userId = req.user.userId;
