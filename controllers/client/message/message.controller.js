@@ -6,7 +6,11 @@ const {
     createSuccessResponse,
     okResponse,
 } = require("../../../constants/responses");
-const { uploadVideoFromBuffer, uploadImageFromBuffer, uploadDocumentFromBuffer } = require("../../../middlewares/uploadPicture.middleware");
+const {
+    uploadVideoFromBuffer,
+    uploadImageFromBuffer,
+    uploadDocumentFromBuffer,
+} = require("../../../middlewares/uploadPicture.middleware");
 
 async function ensureCanChat1to1(userA, userB) {
     const conn = await prisma.connection.findFirst({
@@ -47,16 +51,21 @@ const create1to1 = async (req, res, next) => {
     try {
         await ensureCanChat1to1(userId, recipientId);
 
-        let conv = await prisma.conversation.findFirst({
+        const existingConvs = await prisma.conversation.findMany({
             where: {
                 is_group: false,
                 members: {
-                    every: {
-                        OR: [{ user_id: userId }, { user_id: recipientId }],
-                    },
+                    some: { user_id: userId },
                 },
             },
+            include: { members: true },
         });
+
+        let conv = existingConvs.find(
+            (c) =>
+                c.members.length === 2 &&
+                c.members.some((m) => m.user_id === recipientId)
+        );
 
         if (!conv) {
             conv = await prisma.conversation.create({
@@ -84,7 +93,6 @@ const createGroup = async (req, res, next) => {
     const { name, memberIds } = req.body;
 
     try {
-        // Create the conversation with members
         const conv = await prisma.conversation.create({
             data: {
                 name,
@@ -98,29 +106,15 @@ const createGroup = async (req, res, next) => {
             },
         });
 
-        // Fetch the newly created conversation with all the needed data
         const conversation = await prisma.conversation.findUnique({
             where: { id: conv.id },
             include: {
-                members: {
-                    include: {
-                        user: {
-                            include: { profile: true }
-                        }
-                    }
-                },
-                messages: {
-                    orderBy: { created_at: "desc" },
-                    take: 1
-                },
+                members: { include: { user: { include: { profile: true } } } },
+                messages: { orderBy: { created_at: "desc" }, take: 1 },
             },
         });
 
-        // Get the admin user for group avatar
-        const adminMember = conversation.members.find(m => m.role === "ADMIN");
-        const adminUser = adminMember.user;
-
-        // Format the response to match listConversations format
+        const adminUser = conversation.members.find(m => m.role === "ADMIN")?.user;
         const formattedResponse = {
             conversationId: conversation.id,
             isGroup: conversation.is_group,
@@ -139,7 +133,6 @@ const createGroup = async (req, res, next) => {
     }
 };
 
-
 const listConversations = async (req, res, next) => {
     const userId = req.user.userId;
     try {
@@ -153,27 +146,27 @@ const listConversations = async (req, res, next) => {
                     },
                 },
             },
+            orderBy: { joined_at: "desc" },
         });
 
         const data = memberships.map((m) => {
             const c = m.conversation;
-            console.log('c', c)
             let participant;
             if (!c.is_group) {
-                const other = c.members.find((x) => x.user_id !== userId).user;
+                const other = c.members.find((x) => x.user_id !== userId)?.user;
                 participant = {
-                    id: other.id,
-                    name: `${other?.profile?.first_name} ${other.profile.last_name}`,
-                    avatar: other.profile.profile_picture_url,
-                    is_online: other.is_online,
-                };
-            } else {
-                const other = c.members.find((x) => x.role == "ADMIN").user;
-                participant = {
-                    id: c?.id,
-                    name: `${c?.name}`,
+                    id: other?.id,
+                    name: `${other?.profile?.first_name || ""} ${other?.profile?.last_name || ""}`.trim(),
                     avatar: other?.profile?.profile_picture_url,
                     is_online: other?.is_online,
+                };
+            } else {
+                const admin = c.members.find((x) => x.role === "ADMIN")?.user;
+                participant = {
+                    id: c.id,
+                    name: c.name,
+                    avatar: admin?.profile?.profile_picture_url,
+                    is_online: admin?.is_online,
                 };
             }
             return {
@@ -197,16 +190,14 @@ const getMessages = async (req, res, next) => {
         const member = await prisma.conversation_member.findFirst({
             where: { conversation_id: conversationId, user_id: userId },
         });
-        if (!member) {
-            return res.status(403).json(badRequestResponse("Not in this conversation."));
-        }
+        if (!member) return res.status(403).json(badRequestResponse("Not in this conversation."));
 
         const conv = await prisma.conversation.findUnique({
             where: { id: conversationId },
             include: { members: true },
         });
         if (!conv.is_group) {
-            const otherId = conv.members.find((m) => m.user_id !== userId).user_id;
+            const otherId = conv.members.find((m) => m.user_id !== userId)?.user_id;
             await ensureCanChat1to1(userId, otherId);
         }
 
@@ -219,7 +210,6 @@ const getMessages = async (req, res, next) => {
             },
         });
 
-
         res.json(okResponse(messages));
     } catch (err) {
         next(err);
@@ -230,27 +220,24 @@ const sendMessage = async (req, res, next) => {
     const userId = req.user.userId;
     const { conversationId } = req.params;
     const { content } = req.body;
-
-    let attachment = null;
     const file = req?.files?.[0];
 
     try {
         const member = await prisma.conversation_member.findFirst({
             where: { conversation_id: conversationId, user_id: userId },
         });
-        if (!member) {
-            return res.status(403).json(badRequestResponse("Not in this conversation."));
-        }
+        if (!member) return res.status(403).json(badRequestResponse("Not in this conversation."));
 
         const conv = await prisma.conversation.findUnique({
             where: { id: conversationId },
             include: { members: true },
         });
         if (!conv.is_group) {
-            const otherId = conv.members.find((m) => m.user_id !== userId).user_id;
+            const otherId = conv.members.find((m) => m.user_id !== userId)?.user_id;
             await ensureCanChat1to1(userId, otherId);
         }
 
+        let attachment;
         if (file) {
             let url;
             let fileType = "";
@@ -287,11 +274,7 @@ const sendMessage = async (req, res, next) => {
                 conversation_id: conversationId,
                 sender_id: userId,
                 content,
-                attachments: attachment
-                    ? {
-                        connect: { id: attachment.id },
-                    }
-                    : undefined,
+                attachments: attachment ? { connect: { id: attachment.id } } : undefined,
             },
             include: { sender: { include: { profile: true } }, attachments: true },
         });
@@ -302,7 +285,6 @@ const sendMessage = async (req, res, next) => {
         next(err);
     }
 };
-
 
 const updateGroup = async (req, res, next) => {
     const userId = req.user.userId;
@@ -318,30 +300,30 @@ const updateGroup = async (req, res, next) => {
             return res.status(404).json(badRequestResponse("Group not found."));
         }
 
-        // only ADMIN can update
-        const yourMembership = conv.members.find((m) => m.user_id === userId);
-        if (!yourMembership || yourMembership.role !== "ADMIN") {
+        const admin = conv.members.find((m) => m.user_id === userId);
+        if (!admin || admin.role !== "ADMIN") {
             return res.status(403).json(badRequestResponse("Not an admin."));
         }
 
-        const data = {};
-        if (name) data.name = name;
-        if (addMemberIds) {
-            data.members = {
-                create: addMemberIds.map((id) => ({ user_id: id, role: "MEMBER" })),
-            };
-        }
-        if (removeMemberIds) {
-            data.members = {
-                deleteMany: removeMemberIds.map((id) => ({
-                    user_id: id,
-                })),
-            };
+        if (name) {
+            await prisma.conversation.update({ where: { id: conversationId }, data: { name } });
         }
 
-        const updated = await prisma.conversation.update({
+        if (addMemberIds?.length) {
+            await prisma.conversation_member.createMany({
+                data: addMemberIds.map((id) => ({ conversation_id: conversationId, user_id: id, role: "MEMBER" })),
+                skipDuplicates: true,
+            });
+        }
+
+        if (removeMemberIds?.length) {
+            await prisma.conversation_member.deleteMany({
+                where: { conversation_id: conversationId, user_id: { in: removeMemberIds } },
+            });
+        }
+
+        const updated = await prisma.conversation.findUnique({
             where: { id: conversationId },
-            data,
             include: { members: { include: { user: { include: { profile: true } } } } },
         });
 
@@ -357,18 +339,16 @@ const typingNotification = async (req, res, next) => {
     const { typing } = req.body;
 
     try {
-        pusher.trigger(
-            `conversation-${conversationId}`,
-            'user:typing',
-            { typing, userId }
-        );
+        if (!conversationId || !userId) {
+            return res.status(400).json(badRequestResponse("Missing user or conversation ID."));
+        }
 
-        return res.status(200).send({ message: "Typing notification sent" });
+        await pusher.trigger(`conversation-${conversationId}`, "user:typing", { typing, userId });
+        res.status(200).send({ message: "Typing notification sent" });
     } catch (err) {
         next(err);
     }
 };
-
 
 module.exports = {
     create1to1,
@@ -377,5 +357,5 @@ module.exports = {
     getMessages,
     sendMessage,
     updateGroup,
-    typingNotification
-}
+    typingNotification,
+};

@@ -1,3 +1,4 @@
+// controllers/client/connectionController.js
 const { pusher } = require("../../../configs/pusher");
 const { prisma } = require("../../../configs/prisma");
 const {
@@ -5,17 +6,17 @@ const {
   createSuccessResponse,
   updateSuccessResponse,
   okResponse,
+  notFoundResponse,
 } = require("../../../constants/responses");
 
+// send connection request
 const sendConnection = async (req, res, next) => {
   const { userId } = req.user;
   const { receiver_id } = req.body;
 
   try {
     if (receiver_id === userId) {
-      return res
-        .status(400)
-        .json(badRequestResponse("You cannot connect with yourself."));
+      return res.status(400).json(badRequestResponse("You cannot connect with yourself."));
     }
 
     const existing = await prisma.connection.findFirst({
@@ -27,9 +28,7 @@ const sendConnection = async (req, res, next) => {
     });
 
     if (existing) {
-      return res
-        .status(400)
-        .json(badRequestResponse("Connection request already sent."));
+      return res.status(400).json(badRequestResponse("Connection request already sent."));
     }
 
     const connection = await prisma.connection.create({
@@ -40,270 +39,133 @@ const sendConnection = async (req, res, next) => {
       },
     });
 
-    const receiverProfile = await prisma.profile.findUnique({
-      where: {
-        user_id: userId,
-
-      },
-    });
+    const senderProfile = await prisma.profile.findUnique({ where: { user_id: userId } });
 
     const notification = await prisma.notification.create({
       data: {
         user_id: receiver_id,
-        avatar: receiverProfile?.profile_picture_url,
+        avatar: senderProfile?.profile_picture_url,
         type: "CONNECTION_REQUEST",
-        message: `${receiverProfile?.first_name + " " + receiverProfile?.last_name} sent you a connection request!`,
-        metadata: {
-          senderId: userId,
-        },
+        message: `${senderProfile?.first_name} ${senderProfile?.last_name} sent you a connection request!`,
+        metadata: { senderId: userId },
       },
     });
 
-    await pusher.trigger(`user-${receiver_id}`, "notification", {
-      id: notification.id,
-      avatar: receiverProfile?.profile_picture_url,
-      message: `${receiverProfile?.first_name + " " + receiverProfile?.last_name} sent you a connection request!`,
-      type: notification.type,
-      metadata: notification.metadata,
-      created_at: notification.created_at,
-    });
+    await pusher.trigger(`user-${receiver_id}`, "notification", notification);
 
-    const response = createSuccessResponse(
-      connection,
-      "Connection request sent."
-    );
-    return res.status(response.status.code).json(response);
+    return res.status(201).json(createSuccessResponse(connection, "Connection request sent."));
   } catch (error) {
     next(error);
   }
 };
 
+// accept connection request
 const acceptConnection = async (req, res, next) => {
   const { userId } = req.user;
   const { connection_id } = req.params;
 
   try {
-    const connection = await prisma.connection.findUnique({
-      where: { id: connection_id },
-    });
+    const connection = await prisma.connection.findUnique({ where: { id: connection_id } });
 
     if (!connection || connection.is_deleted) {
       return res.status(404).json(notFoundResponse("Connection not found."));
     }
 
     if (connection.receiver_id !== userId) {
-      return res
-        .status(403)
-        .json(
-          badRequestResponse(
-            "You are not authorized to accept this connection."
-          )
-        );
+      return res.status(403).json(badRequestResponse("You are not authorized to accept this connection."));
     }
 
     if (connection.status === "ACCEPTED") {
-      return res
-        .status(400)
-        .json(badRequestResponse("Connection already accepted."));
+      return res.status(400).json(badRequestResponse("Connection already accepted."));
     }
 
     const updated = await prisma.connection.update({
       where: { id: connection_id },
-      data: {
-        status: "ACCEPTED",
-      },
+      data: { status: "ACCEPTED" },
     });
 
-    const senderProfile = await prisma.profile.findUnique({
-      where: {
-        user_id: userId,
-      },
-    });
+    const receiverProfile = await prisma.profile.findUnique({ where: { user_id: userId } });
 
     const notification = await prisma.notification.create({
       data: {
-        user_id: connection?.sender_id,
-        avatar: senderProfile?.profile_picture_url,
+        user_id: connection.sender_id,
+        avatar: receiverProfile?.profile_picture_url,
         type: "CONNECTION_ACCEPTED",
-        message: `${senderProfile?.first_name + " " + senderProfile?.last_name} accepted your connection request!`,
-        metadata: {
-          senderId: userId,
-        },
+        message: `${receiverProfile?.first_name} ${receiverProfile?.last_name} accepted your connection request!`,
+        metadata: { senderId: userId },
       },
     });
 
-    await pusher.trigger(`user-${connection?.sender_id}`, "notification", {
-      id: notification.id,
-      avatar: senderProfile?.profile_picture_url,
-      message: `${senderProfile?.first_name + " " + senderProfile?.last_name} accepted your connection request!`,
-      type: notification.type,
-      metadata: notification.metadata,
-      created_at: notification.created_at,
-    });
+    await pusher.trigger(`user-${connection.sender_id}`, "notification", notification);
 
-    return res
-      .status(200)
-      .json(
-        updateSuccessResponse(updated, "Connection accepted successfully.")
-      );
+    return res.status(200).json(updateSuccessResponse(updated, "Connection accepted successfully."));
   } catch (error) {
     next(error);
   }
 };
 
+// reject connection request
 const rejectConnection = async (req, res, next) => {
   const { userId } = req.user;
   const { connection_id } = req.params;
 
   try {
-    const connection = await prisma.connection.findUnique({
-      where: { id: connection_id },
-    });
+    const connection = await prisma.connection.findUnique({ where: { id: connection_id } });
 
     if (!connection || connection.is_deleted) {
       return res.status(404).json(notFoundResponse("Connection not found."));
     }
 
     if (connection.receiver_id !== userId) {
-      return res
-        .status(403)
-        .json(badRequestResponse("You are not authorized to reject this connection."));
+      return res.status(403).json(badRequestResponse("You are not authorized to reject this connection."));
     }
 
     if (connection.status === "REJECTED") {
-      return res
-        .status(400)
-        .json(badRequestResponse("Connection already rejected."));
+      return res.status(400).json(badRequestResponse("Connection already rejected."));
     }
 
     const updated = await prisma.connection.update({
       where: { id: connection_id },
-      data: {
-        status: "REJECTED",
-      },
+      data: { status: "REJECTED" },
     });
 
-    return res
-      .status(200)
-      .json(updateSuccessResponse(updated, "Connection rejected successfully."));
+    return res.status(200).json(updateSuccessResponse(updated, "Connection rejected successfully."));
   } catch (error) {
     next(error);
   }
 };
 
-
+// get all sent connection requests
 const getAllSendConnection = async (req, res, next) => {
   const { userId } = req.user;
 
   try {
-    const connection = await prisma.connection.findMany({
+    const connections = await prisma.connection.findMany({
       where: {
         sender_id: userId,
         status: "PENDING",
       },
       include: {
-
         receiver: {
           include: {
-            profile: {
-              include: {
-                user: true
-              }
-            },
+            profile: true,
           },
         },
       },
     });
 
-
-
-
-
-
-
-
-    return res
-      .status(200)
-      .json(
-        okResponse(connection, "Connection accepted successfully.")
-      );
+    return res.status(200).json(okResponse(connections));
   } catch (error) {
     next(error);
   }
 };
 
-const getAllBlockConnection = async (req, res, next) => {
-  const { userId } = req.user;
-
-  try {
-    const blockedConnections = await prisma.block.findMany({
-      where: {
-        OR: [
-          { blocker_id: userId },
-          { blocked_id: userId },
-        ],
-      },
-      include: {
-        blocker: {
-          include: {
-            profile: true,
-          },
-        },
-        blocked: {
-          include: {
-            profile: true,
-          },
-        },
-        connection: {
-          include: {
-            sender: {
-              include: {
-                profile: true,
-              },
-            },
-            receiver: {
-              include: {
-                profile: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const validConnections = blockedConnections
-      .filter((block) => block.connection.status === "ACCEPTED" && !block.connection.is_deleted)
-      .map((block) => {
-        const otherUser = block.blocker_id === userId ? block.blocked : block.blocker;
-
-        return {
-          id: block.id,
-          connection_id: block.connection_id,
-          blocker_id: block.blocker_id,
-          blocked_id: block.blocked_id,
-          created_at: block.created_at,
-          updated_at: block.updated_at,
-          connection: {
-            ...block.connection,
-            isBlockedByMe: block.blocker_id === userId,
-            otherUser: otherUser,
-          }
-        };
-      });
-
-    return res.status(200).json(okResponse(validConnections));
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-
+// get all received pending requests
 const getAllPendingConnection = async (req, res, next) => {
   const { userId } = req.user;
 
   try {
-    const connection = await prisma.connection.findMany({
+    const connections = await prisma.connection.findMany({
       where: {
         receiver_id: userId,
         status: "PENDING",
@@ -317,16 +179,13 @@ const getAllPendingConnection = async (req, res, next) => {
       },
     });
 
-    return res
-      .status(200)
-      .json(
-        updateSuccessResponse(connection, "Connection accepted successfully.")
-      );
+    return res.status(200).json(okResponse(connections));
   } catch (error) {
     next(error);
   }
 };
 
+// get all confirmed connections (excluding blocks)
 const getAllConfirmConnection = async (req, res, next) => {
   const { userId } = req.user;
 
@@ -340,7 +199,8 @@ const getAllConfirmConnection = async (req, res, next) => {
       },
       select: { connection_id: true },
     });
-    const blockedConnectionIds = blockedRecords.map((b) => b.connection_id);
+
+    const blockedConnectionIds = blockedRecords.map(b => b.connection_id);
 
     const connections = await prisma.connection.findMany({
       where: {
@@ -382,7 +242,7 @@ const getAllConfirmConnection = async (req, res, next) => {
       },
     });
 
-    const confirmedConnections = connections.map((conn) => {
+    const result = connections.map(conn => {
       const isSender = conn.sender_id === userId;
       const otherUser = isSender ? conn.receiver : conn.sender;
       const totalConnections =
@@ -391,22 +251,18 @@ const getAllConfirmConnection = async (req, res, next) => {
 
       return {
         id: conn.id,
-        user_id: isSender ? conn.receiver_id : conn.sender_id,
+        user_id: otherUser.id,
         profile: otherUser.profile,
         connectionCount: totalConnections,
       };
     });
 
-    return res.status(200).json(
-      okResponse(
-        confirmedConnections,
-        "All confirmed connections fetched successfully."
-      )
-    );
+    return res.status(200).json(okResponse(result));
   } catch (error) {
     next(error);
   }
 };
+
 
 
 
@@ -509,6 +365,70 @@ const toggleBlockConnection = async (req, res, next) => {
   }
 };
 
+const getAllBlockConnection = async (req, res, next) => {
+  const { userId } = req.user;
+
+  try {
+    const blockedConnections = await prisma.block.findMany({
+      where: {
+        OR: [
+          { blocker_id: userId },
+          { blocked_id: userId },
+        ],
+      },
+      include: {
+        blocker: {
+          include: {
+            profile: true,
+          },
+        },
+        blocked: {
+          include: {
+            profile: true,
+          },
+        },
+        connection: {
+          include: {
+            sender: {
+              include: {
+                profile: true,
+              },
+            },
+            receiver: {
+              include: {
+                profile: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const validConnections = blockedConnections
+      .filter((block) => block.connection.status === "ACCEPTED" && !block.connection.is_deleted)
+      .map((block) => {
+        const otherUser = block.blocker_id === userId ? block.blocked : block.blocker;
+
+        return {
+          id: block.id,
+          connection_id: block.connection_id,
+          blocker_id: block.blocker_id,
+          blocked_id: block.blocked_id,
+          created_at: block.created_at,
+          updated_at: block.updated_at,
+          connection: {
+            ...block.connection,
+            isBlockedByMe: block.blocker_id === userId,
+            otherUser: otherUser,
+          }
+        };
+      });
+
+    return res.status(200).json(okResponse(validConnections));
+  } catch (error) {
+    next(error);
+  }
+};
 
 
 

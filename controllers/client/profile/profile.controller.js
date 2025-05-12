@@ -272,12 +272,13 @@ const getProfilesById = async (req, res, next) => {
             },
             connections_sent: {
               select: {
-
+                status: true,
                 receiver_id: true,
               },
             },
             connections_received: {
               select: {
+                status: true,
                 sender_id: true,
               },
             },
@@ -295,7 +296,7 @@ const getProfilesById = async (req, res, next) => {
     ) || profile.user.connections_received.some(
       (connection) => connection.sender_id === userId
     );
-    
+
     const hasConnection = profile.user.connections_sent.some(
       (connection) =>
         connection.receiver_id === userId && connection.status === "ACCEPTED"
@@ -303,6 +304,7 @@ const getProfilesById = async (req, res, next) => {
       (connection) =>
         connection.sender_id === userId && connection.status === "ACCEPTED"
     );
+    console.log('profile.user.connections_sent', profile.user.connections_sent)
 
 
     const buildNestedComments = (flatComments) => {
