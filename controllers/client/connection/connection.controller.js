@@ -120,13 +120,10 @@ const rejectConnection = async (req, res, next) => {
       return res.status(403).json(badRequestResponse("You are not authorized to reject this connection."));
     }
 
-    if (connection.status === "REJECTED") {
-      return res.status(400).json(badRequestResponse("Connection already rejected."));
-    }
 
-    const updated = await prisma.connection.update({
+
+    const updated = await prisma.connection.delete({
       where: { id: connection_id },
-      data: { status: "REJECTED" },
     });
 
     return res.status(200).json(updateSuccessResponse(updated, "Connection rejected successfully."));
