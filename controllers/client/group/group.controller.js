@@ -404,25 +404,7 @@ const permanentDeleteGroup = async (req, res, next) => {
 };
 
 
-const getUserGroups = async (req, res, next) => {
-  const { userId } = req.user;
-  try {
-    const groups = await prisma.group.findMany({
-      where: {
-        creator: {
-          id: userId,
-        },
-      },
-      orderBy: {
-        created_at: "desc",
-      },
-    });
 
-    return res.status(200).json(okResponse(groups));
-  } catch (error) {
-    next(error);
-  }
-};
 
 const joinGroup = async (req, res, next) => {
   const { userId } = req.user;
@@ -574,6 +556,7 @@ const leaveGroup = async (req, res, next) => {
     next(error);
   }
 };
+
 
 const createGroupPost = async (req, res, next) => {
   const { userId } = req.user;
@@ -781,13 +764,75 @@ const sharePostToGroup = async (req, res, next) => {
         )
       );
   } catch (error) {
-    console.error(error);
     next(error);
   }
 };
 
+const UserGroups = async (req, res, next) => {
+  const { userId } = req.user
+  try {
+
+    const group = await prisma.group.findUnique({
+      where: { creator_id: userId },
+      include: {
+        members: {
+          where: {
+            status: "ACCEPTED",
+          },
+        },
+
+        creator: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+    return res.status(200).json(okResponse(group));
+  } catch (error) {
+    next(error);
+  }
+
+}
+
+
+const getUserAllGroups = async (req, res, next) => {
+  const { userId } = req.user;
+
+  try {
+    const groups = await prisma.group.findMany({
+      where: {
+        members: {
+          some: {
+            user_id: userId,
+            status: "ACCEPTED",
+            is_deleted: false,
+          },
+        },
+        is_deleted: false,
+      },
+      orderBy: {
+        created_at: "desc",
+      },
+      include: {
+        members: {
+          where: {
+            status: "ACCEPTED"
+          }
+        }
+      }
+    });
+
+    return res.status(200).json(okResponse(groups));
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 module.exports = {
-  getUserGroups,
+  UserGroups,
+  getUserAllGroups,
   permanentDeleteGroup,
   createGroupPost,
   createGroup,

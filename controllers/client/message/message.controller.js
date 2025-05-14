@@ -186,16 +186,22 @@ const listConversations = async (req, res, next) => {
 const getMessages = async (req, res, next) => {
     const userId = req.user.userId;
     const { conversationId } = req.params;
+
     try {
         const member = await prisma.conversation_member.findFirst({
             where: { conversation_id: conversationId, user_id: userId },
         });
-        if (!member) return res.status(403).json(badRequestResponse("Not in this conversation."));
+
+        if (!member)
+            return res
+                .status(403)
+                .json(badRequestResponse("Not in this conversation."));
 
         const conv = await prisma.conversation.findUnique({
             where: { id: conversationId },
             include: { members: true },
         });
+
         if (!conv.is_group) {
             const otherId = conv.members.find((m) => m.user_id !== userId)?.user_id;
             await ensureCanChat1to1(userId, otherId);
@@ -210,11 +216,25 @@ const getMessages = async (req, res, next) => {
             },
         });
 
-        res.json(okResponse(messages));
+        // 🔄 Extract and flatten all attachments from messages
+        const allAttachments = messages.flatMap((msg) =>
+            msg.attachments.map((file) => ({
+                ...file,
+                message_id: msg.id, // optionally include the message ID
+            }))
+        );
+
+        res.json(
+            okResponse({
+                messages,
+                allAttachments,
+            })
+        );
     } catch (err) {
         next(err);
     }
 };
+  
 
 const sendMessage = async (req, res, next) => {
     const userId = req.user.userId;

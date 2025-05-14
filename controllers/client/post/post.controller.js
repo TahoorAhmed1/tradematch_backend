@@ -266,7 +266,7 @@ const likePost = async (req, res, next) => {
               user_id: post.user_id,
               avatar: profile?.profile_picture_url,
               type: "LIKE",
-              message: "Someone liked your post!",
+              message: `${profile?.first_name} ${profile?.last_name} Someone liked your post!`,
               metadata: { postId: post.id, likerId: userId },
             },
           })

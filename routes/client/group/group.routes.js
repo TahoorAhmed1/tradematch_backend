@@ -14,6 +14,7 @@ const {
   permanentDeleteGroup,
   getAllJoinRequestsForAdmin,
   updateRequestStatus,
+  getUserAllGroups,
 } = require("../../../controllers/client/group/group.controller");
 const verifyUserByToken = require("../../../middlewares/verifyUserByToken");
 const handleMultipartData = require("../../../middlewares/populateMultipartData.middleware");
@@ -41,9 +42,9 @@ router.get(
 );
 
 router.get(
-  "/user",
+  "/user/group",
   verifyUserByToken,
-  getUserGroups
+  getUserAllGroups
 );
 
 router.get(
