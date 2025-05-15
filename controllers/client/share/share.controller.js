@@ -8,45 +8,24 @@ const sharePost = async (req, res, next) => {
   try {
     const originalPost = await prisma.post.findUnique({
       where: { id: post_id },
-      include: { attachments: true },
+      include: { attachments: true, user: { include: { profile: true } } },
     });
 
-    const attachmentsData = originalPost.attachments.map((file) => ({
-      url: file.url,
-      type: file.type,
-      filename: file.filename,
-      size: file.size,
-      mimeType: file.mimeType,
-    }));
+    if (!originalPost) {
+      return res.status(404).json({ message: "Original post not found" });
+    }
 
-    const newPost = await prisma.post.create({
-      data: {
-        user_id: userId,
-        content: originalPost.content,
-        visibility: "GROUP_ONLY",
-        attachments: {
-          create: attachmentsData,
-        },
-      },
-    });
-
-    await prisma.group_post.createMany({
-      data: group_ids.map((group_id) => ({
-        group_id,
-        post_id: newPost.id,
-      })),
-    });
-
-    const share_data = await prisma.share.create({
-      data: {
-        post_id: newPost.id,
+    await prisma.share.createMany({
+      data: group_ids?.map((group_id) => ({
+        post_id,
         shared_by_id: userId,
-      },
+        group_id,
+      })),
     });
 
     return res
       .status(200)
-      .json(createSuccessResponse(share_data, "Post shared successfully."));
+      .json(createSuccessResponse(null, "Post shared successfully."));
   } catch (error) {
     next(error);
   }
