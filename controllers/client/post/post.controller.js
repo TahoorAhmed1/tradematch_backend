@@ -258,7 +258,6 @@ const likePost = async (req, res, next) => {
         if (userId !== post.user_id) {
           const profile = await prisma.profile.findUnique({
             where: { user_id: userId },
-            select: { profile_picture_url: true },
           })
 
           const notification = await prisma.notification.create({

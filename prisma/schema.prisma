@@ -52,8 +52,11 @@ model user {
 
   authentication authentication?
 
-  profile              profile?
-  posts                post[]
+  profile profile?
+
+  posts          post[]
+  original_posts post[] @relation("OriginalPostUser")
+
   comments             comment[]
   created_groups       group[]               @relation("group_creator")
   groups               group_member[]
@@ -187,6 +190,9 @@ model post {
   user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   user_id String
 
+  original_post_user    user?   @relation("OriginalPostUser", fields: [original_post_user_id], references: [id])
+  original_post_user_id String?
+
   content String? @db.Text
 
   visibility visibility @default(PUBLIC)
@@ -260,7 +266,7 @@ model file {
 
 enum file_type {
   IMAGE
-  PDF 
+  PDF
   TEXT
   SPREADSHEET
   VIDEO

@@ -218,108 +218,42 @@ const updateRequestStatus = async (req, res, next) => {
 };
 
 
-
 const getAllGroupPost = async (req, res, next) => {
   const { id } = req.params;
   try {
-    // Fetch original posts in the group
     const posts = await prisma.post.findMany({
       where: {
         group_posts: {
-          some: { group_id: id },
+          some: {
+            group_id: id,
+          },
         },
         visibility: "GROUP_ONLY",
         is_deleted: false,
       },
-      orderBy: { created_at: "desc" },
-      select: {
-        id: true,
-        content: true,
-        visibility: true,
-        is_deleted: true,
-        created_at: true,
-        updated_at: true,
+      orderBy: {
+        created_at: "desc",
+      },
+      include: {
         attachments: true,
+        shares: true,
+        original_post_user: {
+          include: {
+            profile: true
+          },
+        },
         user: {
-          select: {
-            id: true,
-            email: true,
+          include: {
             profile: true,
           },
         },
         likes: true,
         comments: {
           where: { is_deleted: false },
-          select: {
-            id: true,
-            content: true,
-            parent_id: true,
-            created_at: true,
-            updated_at: true,
-            user: {
-              select: {
-                id: true,
-                email: true,
-                profile: true,
-              },
-            },
-          },
-        },
-      },
-    });
+          include: {
 
-    // Fetch shares made into the group, and ensure original post is not deleted
-    const shares = await prisma.share.findMany({
-      where: {
-        group_id: id,
-        is_deleted: false,
-        post: {
-          is_deleted: false,
-        },
-      },
-      select: {
-        id: true,
-        created_at: true,
-        shared_by: {
-          select: {
-            id: true,
-            email: true,
-            profile: true,
-          },
-        },
-        post: {
-          select: {
-            id: true,
-            content: true,
-            visibility: true,
-            is_deleted: true,
-            created_at: true,
-            updated_at: true,
-            attachments: true,
             user: {
-              select: {
-                id: true,
-                email: true,
-                profile: true,
-              },
-            },
-            likes: true,
-            comments: {
-              where: { is_deleted: false },
-              select: {
-                id: true,
-                content: true,
-                parent_id: true,
-                created_at: true,
-                updated_at: true,
-                user: {
-                  select: {
-                    id: true,
-                    email: true,
-                    profile: true,
-                  },
-                },
-              },
+              include: { profile: true },
             },
           },
         },
@@ -347,37 +281,12 @@ const getAllGroupPost = async (req, res, next) => {
       return roots;
     };
 
-    // Format original posts
     const formattedPosts = posts.map((post) => ({
       ...post,
       comments: buildNestedComments(post.comments),
-      is_share: false,
-      share_info: null,
     }));
 
-    // Format shared posts
-    const formattedSharedPosts = shares
-      .filter((share) => share.post)
-      .map((share) => ({
-        ...share.post,
-        comments: buildNestedComments(share.post.comments),
-        is_share: true,
-        share_info: {
-          share_id: share.id,
-          shared_by: share.shared_by,
-          shared_at: share.created_at,
-        },
-      }));
-
-    // Combine and sort by created_at / shared_at descending
-    const combinedPosts = [...formattedPosts, ...formattedSharedPosts];
-    combinedPosts.sort((a, b) => {
-      const dateA = a.is_share ? new Date(a.share_info.shared_at) : new Date(a.created_at);
-      const dateB = b.is_share ? new Date(b.share_info.shared_at) : new Date(b.created_at);
-      return dateB - dateA;
-    });
-
-    const response = okResponse(combinedPosts);
+    const response = okResponse(formattedPosts);
     return res.status(response.status.code).json(response);
   } catch (error) {
     next(error);
@@ -386,19 +295,19 @@ const getAllGroupPost = async (req, res, next) => {
 
 
 
-const getAllGroups = async (req, res, next) => {
-  try {
-    const groups = await prisma.group.findMany({
-      orderBy: {
-        created_at: "desc",
-      },
-    });
+  const getAllGroups = async (req, res, next) => {
+    try {
+      const groups = await prisma.group.findMany({
+        orderBy: {
+          created_at: "desc",
+        },
+      });
 
-    return res.status(200).json(okResponse(groups));
-  } catch (error) {
-    next(error);
-  }
-};
+      return res.status(200).json(okResponse(groups));
+    } catch (error) {
+      next(error);
+    }
+  };
 
 
 
@@ -693,6 +602,7 @@ const createGroupPost = async (req, res, next) => {
     const post = await prisma.post.create({
       data: {
         user_id: userId,
+        original_post_user_id: userId,
         content,
         visibility: "GROUP_ONLY",
         attachments: attachment
@@ -726,6 +636,7 @@ const sharePostToGroup = async (req, res, next) => {
     const originalPost = await prisma.post.findUnique({
       where: { id: post_id },
       include: {
+
         user: {
           include: {
             profile: true,
@@ -786,10 +697,12 @@ const sharePostToGroup = async (req, res, next) => {
         profile: true,
       },
     });
+    const originalOwnerId = originalPost.original_post_user_id || originalPost.user_id;
 
     const sharedPost = await prisma.post.create({
       data: {
         user_id: userId,
+        original_post_user_id: originalOwnerId,
         content: content || originalPost.content,
         visibility: "GROUP_ONLY",
         attachments: {
