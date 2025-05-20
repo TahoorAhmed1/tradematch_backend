@@ -58,6 +58,7 @@ router.get(
   "/user/pending",
   verifyUserByToken,
   getAllJoinRequestsForAdmin
+  
 );
 
 router.patch(
