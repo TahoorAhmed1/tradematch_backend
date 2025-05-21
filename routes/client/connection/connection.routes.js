@@ -10,6 +10,7 @@ const {
   getAllSendConnection,
   getAllBlockConnection,
   rejectConnection,
+  cancelRequest,
 } = require("../../../controllers/client/connection/connection.controller");
 const {
   createConnectionSchema,
@@ -24,6 +25,12 @@ router.post(
   verifyUserByToken,
   validateRequest(createConnectionSchema),
   sendConnection
+);
+router.post(
+  "/cancel_request",
+  verifyUserByToken,
+  validateRequest(createConnectionSchema),
+  cancelRequest
 );
 router.get(
   "/pending",

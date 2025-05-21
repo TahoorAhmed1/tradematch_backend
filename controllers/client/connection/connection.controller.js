@@ -59,6 +59,35 @@ const sendConnection = async (req, res, next) => {
   }
 };
 
+
+const cancelRequest = async (req, res, next) => {
+  const { userId } = req.user;
+  const { receiver_id } = req.body;
+
+  try {
+    const connection = await prisma.connection.findFirst({
+      where: {
+        sender_id: userId,
+        receiver_id,
+        status: "PENDING",
+      },
+    });
+
+    if (!connection) {
+      return res.status(404).json(badRequestResponse("No pending connection request found to cancel."));
+    }
+
+    await prisma.connection.delete({
+      where: { id: connection.id },
+    });
+
+    return res.status(200).json(createSuccessResponse(null, "Connection request declined and deleted."));
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 // accept connection request
 const acceptConnection = async (req, res, next) => {
   const { userId } = req.user;
@@ -440,5 +469,6 @@ module.exports = {
   getAllPendingConnection,
   getAllConfirmConnection,
   getAllBlockConnection,
-  rejectConnection
+  rejectConnection,
+  cancelRequest
 };

@@ -7,6 +7,13 @@ const createConnectionSchema = Joi.object({
   params: Joi.object({}),
   query: Joi.object({})
 });
+const cancelConnectionSchema = Joi.object({
+  body: Joi.object({
+    receiver_id: Joi.string().uuid().required()
+  }),
+  params: Joi.object({}),
+  query: Joi.object({})
+});
 
 const acceptConnectionSchema = Joi.object({
   params: Joi.object({
@@ -28,7 +35,7 @@ const toggleBlockSchema = Joi.object({
     connection_id: Joi.string().uuid().required(),
   }),
   body: Joi.object({
-    block: Joi.boolean().required(), 
+    block: Joi.boolean().required(),
   }),
   query: Joi.object({}),
 });
@@ -37,5 +44,6 @@ module.exports = {
   createConnectionSchema,
   acceptConnectionSchema,
   getConnectionSchema,
-  toggleBlockSchema
+  toggleBlockSchema,
+  cancelConnectionSchema
 };
