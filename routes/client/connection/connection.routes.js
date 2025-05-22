@@ -11,6 +11,7 @@ const {
   getAllBlockConnection,
   rejectConnection,
   cancelRequest,
+  unFriendRequest,
 } = require("../../../controllers/client/connection/connection.controller");
 const {
   createConnectionSchema,
@@ -31,6 +32,12 @@ router.post(
   verifyUserByToken,
   validateRequest(createConnectionSchema),
   cancelRequest
+);
+router.post(
+  "/unfriend_request/:connection_id",
+  verifyUserByToken,
+  validateRequest(acceptConnectionSchema),
+  unFriendRequest
 );
 router.get(
   "/pending",

@@ -87,8 +87,31 @@ const cancelRequest = async (req, res, next) => {
   }
 };
 
+const unFriendRequest = async (req, res, next) => {
+  const { connection_id } = req.params;
 
-// accept connection request
+  try {
+    const connection = await prisma.connection.findFirst({
+      where: {
+        id: connection_id
+      },
+    });
+
+    if (!connection) {
+      return res.status(404).json(badRequestResponse("No pending connection request found to unfriend."));
+    }
+
+    await prisma.connection.delete({
+      where: { id: connection.id },
+    });
+
+    return res.status(200).json(createSuccessResponse(null, "Connection request declined and deleted."));
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 const acceptConnection = async (req, res, next) => {
   const { userId } = req.user;
   const { connection_id } = req.params;
@@ -470,5 +493,6 @@ module.exports = {
   getAllConfirmConnection,
   getAllBlockConnection,
   rejectConnection,
-  cancelRequest
+  cancelRequest,
+  unFriendRequest
 };
