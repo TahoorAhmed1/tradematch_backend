@@ -121,6 +121,7 @@ const getAllProfile = async (req, res, next) => {
   const userId = req.user.userId;
 
   try {
+    // Get all pending requests you sent
     const pendingRequests = await prisma.connection.findMany({
       where: {
         sender_id: userId,
@@ -133,6 +134,7 @@ const getAllProfile = async (req, res, next) => {
 
     const pendingReceiverIds = pendingRequests.map((r) => r.receiver_id);
 
+    // Fetch profiles except your own
     const profiles = await prisma.profile.findMany({
       where: {
         user_id: {
@@ -147,7 +149,7 @@ const getAllProfile = async (req, res, next) => {
                 status: "ACCEPTED",
               },
               select: {
-                id: true,
+                receiver_id: true,
               },
             },
             connections_received: {
@@ -155,7 +157,7 @@ const getAllProfile = async (req, res, next) => {
                 status: "ACCEPTED",
               },
               select: {
-                id: true,
+                sender_id: true,
               },
             },
           },
@@ -163,15 +165,27 @@ const getAllProfile = async (req, res, next) => {
       },
     });
 
+    // Map profiles and check connection status with your userId
     const enrichedProfiles = profiles.map((profile) => {
-      const sent = profile.user.connections_sent?.length || 0;
-      const received = profile.user.connections_received?.length || 0;
+      const sentConnections = profile.user.connections_sent || [];
+      const receivedConnections = profile.user.connections_received || [];
+
+      // Calculate total accepted connections this profile has
+      const connectionCount = sentConnections.length + receivedConnections.length;
+
+      // Check if you sent a pending request to this user
       const request = pendingReceiverIds.includes(profile.user_id);
+
+      // Check if there is an accepted connection between your userId and this profile.user_id
+      const isConnected =
+        sentConnections.some((conn) => conn.receiver_id === userId) ||
+        receivedConnections.some((conn) => conn.sender_id === userId);
 
       return {
         ...profile,
-        connectionCount: sent + received,
+        connectionCount,
         request,
+        isConnected,
       };
     });
     const response = okResponse(enrichedProfiles);
@@ -180,6 +194,7 @@ const getAllProfile = async (req, res, next) => {
     next(error);
   }
 };
+
 
 const searchProfiles = async (req, res, next) => {
   const userId = req.user.userId;
@@ -354,7 +369,6 @@ const getProfilesById = async (req, res, next) => {
         connectionId: connection?.id || null,
       },
     });
-
     return res.status(response.status.code).json(response);
   } catch (error) {
     next(error);
